@@ -99,6 +99,23 @@ async def invoke_tool(
             from app.core.config import settings
             from db.models import ToolInvocation
 
+            def _to_json_safe(obj):
+                import json
+                from datetime import date, datetime
+                from decimal import Decimal
+                from uuid import UUID
+
+                def _default(item):
+                    if isinstance(item, Decimal):
+                        return float(item)
+                    if isinstance(item, (datetime, date)):
+                        return item.isoformat()
+                    if isinstance(item, UUID):
+                        return str(item)
+                    return str(item)
+
+                return json.loads(json.dumps(obj, default=_default))
+
             engine = create_async_engine(settings.DATABASE_URL)
             async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
             async with async_session() as session:
@@ -107,8 +124,8 @@ async def invoke_tool(
                     task_id=_UUID(task_id),
                     tool_name=tool_name,
                     tool_kind="custom",
-                    input=arguments,
-                    output=output if success else {"error": error_str},
+                    input=_to_json_safe(arguments),
+                    output=_to_json_safe(output if success else {"error": error_str}),
                     latency_ms=latency_ms,
                     success=success,
                     error=error_str,

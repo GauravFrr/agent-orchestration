@@ -50,7 +50,24 @@ class GeminiProvider(BaseProvider):
 
             if is_supervisor:
                 import json
-                if "delete" in last_msg:
+                if "research market trends" in last_msg or "summary report" in last_msg:
+                    subtasks = [
+                        {
+                            "id": "subtask_1",
+                            "specialist": "research",
+                            "input": {"query": "agent orchestration trends"},
+                            "depends_on": [],
+                            "expected_output_schema": {}
+                        },
+                        {
+                            "id": "subtask_2",
+                            "specialist": "writing",
+                            "input": {"facts_file": "subtask_1"},
+                            "depends_on": ["subtask_1"],
+                            "expected_output_schema": {}
+                        }
+                    ]
+                elif "delete" in last_msg:
                     subtasks = [
                         {
                             "id": "subtask_1",
@@ -121,6 +138,8 @@ class GeminiProvider(BaseProvider):
                 return '{"thought": "Querying table", "tool_call": {"name": "db_query", "arguments": {"query": "SELECT * FROM non_existent_table_999;"}}}', 10, 5
             elif "sales_data" in last_msg or "customer_sentiment_score" in last_msg:
                 return '{"thought": "Querying sales data", "tool_call": {"name": "db_query", "arguments": {"query": "SELECT * FROM demo_data.sales_data;"}}}', 10, 5
+            elif "research" in last_msg or "trends" in last_msg or "orchestration" in last_msg:
+                return '{"thought": "Searching web for trends", "tool_call": {"name": "web_search", "arguments": {"query": "agent orchestration trends"}}}', 10, 5
 
             return '{"thought": "I have completed the subtask.", "final_answer": {"overview": "Trends include LangGraph, supervisor patterns, and sandboxed code execution."}}', 10, 5
 

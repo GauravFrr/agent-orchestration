@@ -59,6 +59,47 @@ def should_continue(state: AgentState) -> str:
     logger.info("Plan execution in progress. Routing to review node.")
     return "review"
 
+def route_after_review(state: AgentState) -> str:
+    """
+    Conditional routing edge after review node. Routes to dispatch if more subtasks are ready, or synthesize if finished.
+    """
+    plan = state.get("plan")
+    results = state.get("results", {})
+    status = state.get("status")
+
+    if status == "escalated":
+        logger.info("Graph state status is 'escalated'. Ending workflow execution.")
+        return END
+
+    if not plan or not plan.subtasks:
+        return "synthesize"
+
+    # Check if all subtasks in the plan have results
+    if len(results) >= len(plan.subtasks):
+        logger.info("All plan subtasks evaluated. Routing to synthesis node.")
+        return "synthesize"
+
+    # Check if any remaining subtasks are ready
+    ready_subtasks = []
+    for subtask in plan.subtasks:
+        if subtask.id in results:
+            continue
+        all_deps_met = True
+        for dep_id in subtask.depends_on:
+            dep_res = results.get(dep_id)
+            if not dep_res or "error" in dep_res:
+                all_deps_met = False
+                break
+        if all_deps_met:
+            ready_subtasks.append(subtask)
+
+    if ready_subtasks:
+        logger.info(f"Routing to dispatch node to execute {len(ready_subtasks)} ready subtasks.")
+        return "dispatch"
+
+    logger.info("No further ready subtasks can be executed. Routing to synthesis node.")
+    return "synthesize"
+
 def build_workflow():
     """
     Wiring the nodes and conditional edges of the LangGraph state machine.
@@ -92,10 +133,9 @@ def build_workflow():
     # Add conditional edge from review node
     workflow.add_conditional_edges(
         "review",
-        should_continue,
+        route_after_review,
         {
             "dispatch": "dispatch",
-            "review": "review",
             "synthesize": "synthesize",
             END: END
         }

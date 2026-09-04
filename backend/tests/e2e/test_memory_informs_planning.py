@@ -30,7 +30,7 @@ async def test_memory_informs_planning(db_cleaner):
     # Run Task 1 to completion to populate ChromaDB memory
     async with AsyncSessionLocal() as session:
         t1 = Task(id=UUID(task1_id), request_text=prompt, status="intake", confidence=1.0)
-        session.add(t1)
+        await session.merge(t1)
         await session.commit()
 
     await run_task_workflow(UUID(task1_id), prompt)
@@ -48,7 +48,7 @@ async def test_memory_informs_planning(db_cleaner):
     # Run Task 2 (Secondary similar task)
     async with AsyncSessionLocal() as session:
         t2 = Task(id=UUID(task2_id), request_text=prompt, status="intake", confidence=1.0)
-        session.add(t2)
+        await session.merge(t2)
         await session.commit()
 
     await run_task_workflow(UUID(task2_id), prompt)

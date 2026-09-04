@@ -48,7 +48,8 @@ async def plan_node(state: AgentState) -> dict:
             request_for_plan = f"{request_text}\n\n{memories_text}"
             logger.info(f"Injected retrieved context into request for planning task {task_id}")
 
-        span.set_attribute("payload", {"request_text": request_for_plan})
+        import json
+        span.set_attribute("payload", json.dumps({"request_text": request_for_plan}))
         logger.info(f"Final prompt text sent to supervisor for task {task_id}:\n{request_for_plan}")
 
         supervisor = SupervisorAgent()
@@ -65,31 +66,39 @@ async def plan_node(state: AgentState) -> dict:
             task_uuid = UUID(task_id)
             task = await session.get(Task, task_uuid)
 
-            if task:
+            if not task:
+                task = Task(
+                    id=task_uuid,
+                    request_text=request_text,
+                    status="executing",
+                    confidence=plan.confidence,
+                    plan=plan.model_dump()
+                )
+                await session.merge(task)
+            else:
                 task.plan = plan.model_dump()
                 task.confidence = plan.confidence
                 task.status = "executing"
 
-                # Create subtask records in database
-                for subtask_schema in plan.subtasks:
-                    db_subtask = Subtask(
-                        id=subtask_schema.id,
-                        task_id=task_uuid,
-                        specialist=subtask_schema.specialist.value,
-                        input=subtask_schema.input,
-                        depends_on=subtask_schema.depends_on,
-                        status="pending"
-                    )
-                    session.add(db_subtask)
+            # Create subtask records in database
+            for subtask_schema in plan.subtasks:
+                db_subtask = Subtask(
+                    id=subtask_schema.id,
+                    task_id=task_uuid,
+                    specialist=subtask_schema.specialist.value,
+                    input=subtask_schema.input,
+                    depends_on=subtask_schema.depends_on,
+                    status="pending",
+                    action_tag=subtask_schema.action_tag
+                )
+                await session.merge(db_subtask)
 
-                await session.commit()
-                logger.info(f"Generated plan with {len(plan.subtasks)} subtasks. Saved to DB.")
+            await session.commit()
+            logger.info(f"Generated plan with {len(plan.subtasks)} subtasks. Saved to DB.")
 
-                # Save initial working state to Redis
-                from app.memory.short_term import save_working_state
-                save_working_state(task_id, plan.model_dump(), {}, {})
-            else:
-                logger.error(f"Task with ID {task_id} not found in database during planning.")
+            # Save initial working state to Redis
+            from app.memory.short_term import save_working_state
+            save_working_state(task_id, plan.model_dump(), {}, {})
 
         return {
             "plan": plan,

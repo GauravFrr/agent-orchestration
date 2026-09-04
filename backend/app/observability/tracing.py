@@ -125,7 +125,7 @@ class PostgresSpanProcessor(SpanProcessor):
                     tokens_out=record["tokens_out"],
                     payload=record["payload"]
                 )
-                session.add(db_span)
+                await session.merge(db_span)
                 await session.commit()
         except Exception as e:
             logger.error(f"Failed to persist TraceSpan to database: {str(e)}")

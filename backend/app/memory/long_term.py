@@ -21,7 +21,7 @@ def get_chroma_client():
     return _chroma_client
 
 def get_collection(name: str):
-    return get_chroma_client().get_or_create_collection(name)
+    return get_chroma_client().get_or_create_collection(name, embedding_function=None)
 
 async def get_embedding(text: str) -> List[float]:
     """
@@ -53,17 +53,19 @@ async def add_to_collection(collection_name: str, doc_id: str, document: str, em
     """
     Add a document with its pre-computed embedding and metadata to ChromaDB collection.
     """
-    try:
+    def _do_add():
         col = get_collection(collection_name)
+        col.add(
+            ids=[doc_id],
+            embeddings=[embedding],
+            documents=[document],
+            metadatas=[metadata]
+        )
+
+    try:
         await asyncio.wait_for(
-            asyncio.to_thread(
-                col.add,
-                ids=[doc_id],
-                embeddings=[embedding],
-                documents=[document],
-                metadatas=[metadata]
-            ),
-            timeout=3.0
+            asyncio.to_thread(_do_add),
+            timeout=30.0
         )
         logger.info(f"Successfully added document {doc_id} to ChromaDB collection '{collection_name}'")
     except Exception as e:
@@ -73,15 +75,17 @@ async def query_collection(collection_name: str, query_embedding: List[float], n
     """
     Query a ChromaDB collection using a query embedding vector.
     """
-    try:
+    def _do_query():
         col = get_collection(collection_name)
+        return col.query(
+            query_embeddings=[query_embedding],
+            n_results=n_results
+        )
+
+    try:
         results = await asyncio.wait_for(
-            asyncio.to_thread(
-                col.query,
-                query_embeddings=[query_embedding],
-                n_results=n_results
-            ),
-            timeout=3.0
+            asyncio.to_thread(_do_query),
+            timeout=30.0
         )
         return results
     except Exception as e:
@@ -92,14 +96,16 @@ async def delete_from_collection(collection_name: str, doc_id: str):
     """
     Delete a document from ChromaDB collection.
     """
-    try:
+    def _do_delete():
         col = get_collection(collection_name)
+        col.delete(
+            ids=[doc_id]
+        )
+
+    try:
         await asyncio.wait_for(
-            asyncio.to_thread(
-                col.delete,
-                ids=[doc_id]
-            ),
-            timeout=3.0
+            asyncio.to_thread(_do_delete),
+            timeout=30.0
         )
         logger.info(f"Successfully deleted document {doc_id} from ChromaDB collection '{collection_name}'")
     except Exception as e:

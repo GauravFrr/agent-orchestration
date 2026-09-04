@@ -9,6 +9,7 @@ from app.agents.specialists.writing import WritingSpecialist
 from app.core.schemas import SpecialistType, SubtaskStatus
 from app.graph.state import AgentState
 from app.observability.tracing import get_tracer
+from sqlalchemy import update
 from db.models import AsyncSessionLocal, Subtask
 
 logger = logging.getLogger(__name__)
@@ -159,9 +160,11 @@ async def dispatch_node(state: AgentState) -> dict:
     async with AsyncSessionLocal() as session:
         for subtask in ready_subtasks:
             task_uuid = UUID(task_id)
-            db_subtask = await session.get(Subtask, (subtask.id, task_uuid))
-            if db_subtask:
-                db_subtask.status = "running"
+            await session.execute(
+                update(Subtask)
+                .where(Subtask.id == subtask.id, Subtask.task_id == task_uuid)
+                .values(status="running")
+            )
         await session.commit()
         # Save working state to Redis
         from app.memory.short_term import save_working_state
@@ -196,22 +199,28 @@ async def dispatch_node(state: AgentState) -> dict:
             model = settings.DEFAULT_MODEL_GEMINI if (settings.GEMINI_API_KEY or settings.MOCK_PROVIDERS) else settings.DEFAULT_MODEL_CLAUDE
             await record_llm_cost(task_id, model, in_t, out_t)
 
+            # Always record output in results so build_graph knows subtask finished
+            results[subtask.id] = output
+
             # Check for error or output
             if "error" in output and len(output) == 1:
                 errors[subtask.id] = output["error"]
                 logger.error(f"Subtask {subtask.id} failed with error: {output['error']}")
+                subtask.status = SubtaskStatus.FAILED
+                db_status = "failed"
             else:
-                results[subtask.id] = output
                 logger.info(f"Subtask {subtask.id} completed successfully.")
+                subtask.status = SubtaskStatus.REVIEW_PENDING
+                db_status = "review_pending"
 
-            # Update DB subtask row status to review_pending
-            db_subtask = await session.get(Subtask, (subtask.id, task_uuid))
-            if db_subtask:
-                db_subtask.status = "review_pending"
-                db_subtask.output = output
+            # Update DB subtask row status
+            await session.execute(
+                update(Subtask)
+                .where(Subtask.id == subtask.id, Subtask.task_id == task_uuid)
+                .values(status=db_status, output=output)
+            )
 
             # Sync plan status in state object representation
-            subtask.status = SubtaskStatus.REVIEW_PENDING
             subtask.output = output
 
         await session.commit()

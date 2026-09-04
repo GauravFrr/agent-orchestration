@@ -25,7 +25,7 @@ from app.core.config import settings
 Base = declarative_base()
 
 # Operational DB Connection
-engine = create_async_engine(settings.DATABASE_URL, echo=False)
+engine = create_async_engine(settings.DATABASE_URL, echo=False, pool_size=2, max_overflow=2, pool_recycle=60, pool_pre_ping=True)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 async def get_db_session() -> AsyncSession:

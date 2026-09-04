@@ -49,11 +49,12 @@ class SupervisorAgent:
         tracer = get_tracer()
 
         logger.info(f"Supervisor calling LLM ({model}) for planning...")
+        import json
         span_attrs = {
             "span_type": "llm_call",
             "actor": "supervisor",
             "model": model,
-            "payload": {"messages": messages}
+            "payload": json.dumps({"messages": messages})
         }
         if task_id:
             span_attrs["task_id"] = str(task_id)

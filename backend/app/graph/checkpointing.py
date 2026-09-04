@@ -13,18 +13,30 @@ from db.models import AsyncSessionLocal, Checkpoint
 logger = logging.getLogger(__name__)
 
 _checkpointer_instance: Optional[AsyncPostgresSaver] = None
+_checkpointer_loop: Optional[asyncio.AbstractEventLoop] = None
 
 def get_checkpointer() -> AsyncPostgresSaver:
     """
-    Returns a singleton LangGraph AsyncPostgresSaver checkpointer instance.
+    Returns a LangGraph AsyncPostgresSaver checkpointer instance cached per event loop.
     Raises RuntimeError if initialization fails.
     """
-    global _checkpointer_instance
-    if _checkpointer_instance is None:
+    global _checkpointer_instance, _checkpointer_loop
+    try:
+        current_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        current_loop = None
+
+    if _checkpointer_instance is None or _checkpointer_loop != current_loop:
         try:
+            if _checkpointer_instance and hasattr(_checkpointer_instance, "conn"):
+                try:
+                    asyncio.create_task(_checkpointer_instance.conn.close())
+                except Exception:
+                    pass
             conn_str = settings.DATABASE_URL.replace("postgresql+psycopg://", "postgresql://")
-            pool = AsyncConnectionPool(conninfo=conn_str, max_size=10, kwargs={"autocommit": True})
+            pool = AsyncConnectionPool(conninfo=conn_str, min_size=1, max_size=2, kwargs={"autocommit": True})
             _checkpointer_instance = AsyncPostgresSaver(pool)
+            _checkpointer_loop = current_loop
         except Exception as e:
             error_msg = f"Failed to initialize LangGraph AsyncPostgresSaver checkpointer: {str(e)}"
             logger.error(error_msg)

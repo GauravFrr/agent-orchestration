@@ -12,7 +12,8 @@ async def initialize_database():
     Initialize the database schemas, roles, tables, and mock data.
     """
     db_host = os.environ.get("DB_HOST", "localhost")
-    admin_url = os.environ.get("POSTGRES_ADMIN_URL", f"postgresql+psycopg://postgres:postgres@{db_host}:5432/orchestration")
+    default_admin = os.environ.get("DATABASE_URL", f"postgresql+psycopg://postgres:postgres@{db_host}:5432/orchestration")
+    admin_url = os.environ.get("POSTGRES_ADMIN_URL", default_admin)
     engine = create_async_engine(admin_url, echo=True)
 
     logger.info("Starting database initialization...")

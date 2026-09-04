@@ -5,13 +5,13 @@ from typing import Any, Dict, List
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from app.agents.supervisor import clean_json_text
 from app.core.config import settings
 from app.memory.long_term import add_to_collection, get_embedding, query_collection
 from app.providers import get_default_provider
-from db.models import AsyncSessionLocal, Memory, Subtask, Task
+from db.models import AsyncSessionLocal, Memory, Subtask
 
 logger = logging.getLogger(__name__)
 

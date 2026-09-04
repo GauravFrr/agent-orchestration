@@ -1,13 +1,10 @@
-import os
 from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import (
-    JSON,
     Boolean,
     Column,
     DateTime,
-    Enum,
     Float,
     ForeignKey,
     ForeignKeyConstraint,

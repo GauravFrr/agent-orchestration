@@ -97,13 +97,10 @@ async def review_node(state: AgentState) -> dict:
                     db_subtask.retry_count += 1
                     subtask.status = SubtaskStatus.REJECTED
                     # Check if repeated failure threshold triggered escalation
-                    from datetime import datetime
-                    from uuid import uuid4
 
                     from app.hitl.approval_levels import get_approval_level
                     from app.hitl.queue import create_review_request
                     from app.hitl.triggers import evaluate_triggers
-                    from db.models import Checkpoint
                     from db.models import Task as TaskModel
 
                     triggers = await evaluate_triggers(

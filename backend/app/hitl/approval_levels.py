@@ -1,5 +1,4 @@
 import logging
-from typing import Any, Dict
 
 from app.hitl.triggers import MANDATORY_SENSITIVE_TAGS, get_config_val
 

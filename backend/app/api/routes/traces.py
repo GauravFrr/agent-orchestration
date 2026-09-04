@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.observability.tracing import get_task_trace_tree
 from app.replay.replay_engine import execute_replay
-from db.models import Replay, Task, get_db_session
+from db.models import Replay, get_db_session
 
 logger = logging.getLogger(__name__)
 

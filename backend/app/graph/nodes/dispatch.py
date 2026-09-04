@@ -2,6 +2,8 @@ import asyncio
 import logging
 from uuid import UUID
 
+from sqlalchemy import update
+
 from app.agents.specialists.code_exec import CodeExecSpecialist
 from app.agents.specialists.data_analysis import DataAnalysisSpecialist
 from app.agents.specialists.research import ResearchSpecialist
@@ -9,7 +11,6 @@ from app.agents.specialists.writing import WritingSpecialist
 from app.core.schemas import SpecialistType, SubtaskStatus
 from app.graph.state import AgentState
 from app.observability.tracing import get_tracer
-from sqlalchemy import update
 from db.models import AsyncSessionLocal, Subtask
 
 logger = logging.getLogger(__name__)
@@ -98,13 +99,10 @@ async def dispatch_node(state: AgentState) -> dict:
         return {"current_subtask_ids": []}
 
     # 1.5 Check HITL Escalation Triggers before execution
-    from datetime import datetime
-    from uuid import uuid4
 
     from app.hitl.approval_levels import get_approval_level
     from app.hitl.queue import create_review_request
     from app.hitl.triggers import evaluate_triggers
-    from db.models import Checkpoint
     from db.models import Task as TaskModel
 
     for subtask in ready_subtasks:

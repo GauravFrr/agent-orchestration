@@ -1,10 +1,8 @@
 import asyncio
 import logging
-from datetime import datetime
-from uuid import UUID
 
 from celery import Celery
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from app.core.config import settings
 from app.memory.long_term import delete_from_collection

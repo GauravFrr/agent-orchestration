@@ -5,30 +5,61 @@ import os
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from db.models import Base
+
 logger = logging.getLogger(__name__)
+
+async def get_admin_engine():
+    db_host = os.environ.get("DB_HOST", "localhost")
+    candidates = []
+    if os.environ.get("POSTGRES_ADMIN_URL"):
+        candidates.append(os.environ["POSTGRES_ADMIN_URL"])
+    candidates.append(f"postgresql+psycopg://postgres:postgres@{db_host}:5432/orchestration")
+    if os.environ.get("DATABASE_URL"):
+        candidates.append(os.environ["DATABASE_URL"])
+
+    tested = set()
+    for url in candidates:
+        if url in tested:
+            continue
+        tested.add(url)
+        try:
+            engine = create_async_engine(url, echo=False)
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            logger.info(f"Connected to database admin using: {url.split('@')[-1]}")
+            return engine
+        except Exception as e:
+            logger.warning(f"Could not connect using {url.split('@')[-1]}: {e}")
+            continue
+
+    raise RuntimeError("Failed to connect to database with any admin URL candidate.")
 
 async def initialize_database():
     """
     Initialize the database schemas, roles, tables, and mock data.
     """
-    db_host = os.environ.get("DB_HOST", "localhost")
-    default_admin = os.environ.get("DATABASE_URL", f"postgresql+psycopg://postgres:postgres@{db_host}:5432/orchestration")
-    admin_url = os.environ.get("POSTGRES_ADMIN_URL", default_admin)
-    engine = create_async_engine(admin_url, echo=True)
+    engine = await get_admin_engine()
 
     logger.info("Starting database initialization...")
 
     async with engine.begin() as conn:
-        # 1. Create Roles/Users (if they don't exist)
-        logger.info("Creating roles orchestrator and analyst...")
+        # 0. Ensure base operational tables exist
+        logger.info("Creating base operational tables from metadata...")
+        await conn.run_sync(Base.metadata.create_all)
+
+        # 1. Create Roles/Users (if superuser and roles don't exist)
+        logger.info("Creating roles orchestrator and analyst if missing...")
         await conn.execute(text("""
             DO $$
             BEGIN
-                IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'orchestrator') THEN
-                    CREATE ROLE orchestrator WITH LOGIN PASSWORD 'orchestrator_pass';
-                END IF;
-                IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'analyst') THEN
-                    CREATE ROLE analyst WITH LOGIN PASSWORD 'analyst_pass';
+                IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = current_user AND rolsuper = true) THEN
+                    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'orchestrator') THEN
+                        CREATE ROLE orchestrator WITH LOGIN PASSWORD 'orchestrator_pass';
+                    END IF;
+                    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'analyst') THEN
+                        CREATE ROLE analyst WITH LOGIN PASSWORD 'analyst_pass';
+                    END IF;
                 END IF;
             END
             $$;
@@ -99,24 +130,27 @@ async def initialize_database():
             ('Charlie Brown', 'Operations', 95000.00, '2024-01-10');
         """))
 
-        # 5. Grant Permissions (Segmentation Boundary)
+        # 5. Grant Permissions (Segmentation Boundary) safely
         logger.info("Configuring database segmentation grants...")
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'orchestrator') THEN
+                    GRANT ALL PRIVILEGES ON SCHEMA public TO orchestrator;
+                    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO orchestrator;
+                    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO orchestrator;
+                END IF;
 
-        # Re-grant orchestrator permissions on public
-        await conn.execute(text("GRANT ALL PRIVILEGES ON SCHEMA public TO orchestrator;"))
-        await conn.execute(text("GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO orchestrator;"))
-        await conn.execute(text("GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO orchestrator;"))
-
-        # Revoke public access from analyst
-        await conn.execute(text("REVOKE ALL PRIVILEGES ON SCHEMA public FROM analyst;"))
-
-        # Grant usage & read-only select on demo_data schema to analyst
-        await conn.execute(text("GRANT USAGE ON SCHEMA demo_data TO analyst;"))
-        await conn.execute(text("GRANT SELECT ON ALL TABLES IN SCHEMA demo_data TO analyst;"))
-        await conn.execute(text("GRANT SELECT ON ALL SEQUENCES IN SCHEMA demo_data TO analyst;"))
-
-        # Alter default privileges so future tables in demo_data are readable by analyst
-        await conn.execute(text("ALTER DEFAULT PRIVILEGES IN SCHEMA demo_data GRANT SELECT ON TABLES TO analyst;"))
+                IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'analyst') THEN
+                    REVOKE ALL PRIVILEGES ON SCHEMA public FROM analyst;
+                    GRANT USAGE ON SCHEMA demo_data TO analyst;
+                    GRANT SELECT ON ALL TABLES IN SCHEMA demo_data TO analyst;
+                    GRANT SELECT ON ALL SEQUENCES IN SCHEMA demo_data TO analyst;
+                    ALTER DEFAULT PRIVILEGES IN SCHEMA demo_data GRANT SELECT ON TABLES TO analyst;
+                END IF;
+            END
+            $$;
+        """))
 
         # 6. Schema Migrations & HITL Configurations
         logger.info("Applying additive schema migrations and seeding HITL configurations...")
@@ -216,3 +250,4 @@ async def initialize_database():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     asyncio.run(initialize_database())
+

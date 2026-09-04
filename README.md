@@ -1,331 +1,282 @@
-# Agent Orchestration System
+<div align="center">
+  <img alt="Agent Orchestration Architecture" src="docs/architecture-diagram.svg" width="850">
 
-A production-grade autonomous agent orchestration system. A supervisor agent decomposes complex natural-language tasks into an execution plan, delegates subtasks to specialized agents, validates their output with a reviewer, saves memory across sessions, escalates to a human operator when confidence is low or an action is sensitive, and makes every decision observable and replayable.
+  <p><strong>Production-grade autonomous multi-agent orchestration framework built with LangGraph, FastAPI, Redis, ChromaDB, and OpenTelemetry.</strong></p>
+  
+  <p>Decomposes complex natural-language tasks, delegates to specialized agents with bounded tools, validates outputs via a reviewer agent, retains long-term memory across sessions, escalates sensitive actions to a human operator, and provides full OTel observability with native checkpoint replay.</p>
 
-Built as a portfolio project demonstrating multi-agent reasoning architecture, not a chatbot or single-LLM-call toy.
+  <p>
+    <a href="https://github.com/GauravFrr/agent-orchestration"><img src="https://img.shields.io/github/license/GauravFrr/agent-orchestration" alt="License" /></a>
+    <a href="https://github.com/GauravFrr/agent-orchestration"><img src="https://img.shields.io/github/languages/top/GauravFrr/agent-orchestration" alt="Languages" /></a>
+    <a href="https://github.com/GauravFrr/agent-orchestration/issues"><img src="https://img.shields.io/github/issues/GauravFrr/agent-orchestration" alt="Issues" /></a>
+    <a href="https://github.com/GauravFrr/agent-orchestration/stargazers"><img src="https://img.shields.io/github/stars/GauravFrr/agent-orchestration" alt="Stars" /></a>
+  </p>
 
----
-
-## Problem Statement
-
-Most public "AI agent" portfolio projects are single-agent toy demos: one LLM call, one tool, no memory, no oversight. Real production agent systems need task decomposition, specialized delegation, persistent memory, and a human safety valve. This project builds exactly that. See [`context/01_PRD.md`](context/01_PRD.md) for the full spec.
-
----
-
-## Architecture
-
-```
-                         ┌─────────────────────────┐
-                         │      Client / Demo        │
-                         │  (CLI, curl, React UI)    │
-                         └────────────┬─────────────┘
-                                      │ REST / WebSocket
-                         ┌────────────▼─────────────┐
-                         │      Orchestration API     │
-                         │   FastAPI · Python 3.12    │
-                         └────────────┬─────────────┘
-                                      │
-                         ┌────────────▼─────────────┐
-                         │     LangGraph Runtime      │
-                         │  intake→plan→dispatch→     │
-                         │  review→synthesize         │
-                         │  (AsyncPostgresSaver ckpt) │
-                         └──┬──────┬───────┬─────────┘
-                            │      │       │
-                  ┌──────────▼─┐ ┌─▼──────┐ ┌▼────────────┐
-                  │ Specialist  │ │Reviewer│ │   Memory     │
-                  │  Agents     │ │ Agent  │ │   Manager    │
-                  │ (research,  │ └────────┘ └──────┬───────┘
-                  │  analysis,  │                   │
-                  │  writing,   │        ┌──────────┴──────────┐
-                  │  code_exec) │        │                     │
-                  └──────┬──────┘   ┌───▼──────┐     ┌────────▼────┐
-                         │          │  Redis    │     │  ChromaDB   │
-                  ┌───────▼───────┐ │(short-term│     │(long-term   │
-                  │ Tool Registry │ │ per-task) │     │ semantic)   │
-                  │ custom + MCP  │ └───────────┘     └─────────────┘
-                  └───────────────┘
-                         │
-                  ┌───────▼────────────┐
-                  │ Human Review Queue  │──► React Review UI
-                  │  (Postgres + Redis) │     (approve / reject /
-                  └──────────┬──────── ┘      modify / take over)
-                             │
-                  ┌──────────▼─────────┐
-                  │  OTel Trace Store   │──► Trace Explorer UI
-                  │ (Postgres + OTel    │     (span tree, cost,
-                  │  collector)         │      replay modal)
-                  └─────────────────────┘
-```
-
-See [`context/02_TRD.md`](context/02_TRD.md) for the full component breakdown, state machine definition, and tech stack rationale.
-
-The architecture diagram is also available as a rendered SVG at [`docs/architecture-diagram.svg`](docs/architecture-diagram.svg).
+  <p>
+    <a href="#%EF%B8%8F-system-architecture">Architecture</a> •
+    <a href="#-specialist-agents--tooling">Agents & Tools</a> •
+    <a href="#-e2e-test-suite-results">E2E Benchmarks</a> •
+    <a href="#%EF%B8%8F-api-endpoints-quick-reference">API Reference</a> •
+    <a href="#%EF%B8%8F-quickstart--docker-setup">Setup</a> •
+    <a href="#-running-the-demo">Demo Scenario</a>
+  </p>
+</div>
 
 ---
 
-## Tech Stack
+### Features
 
-| Layer | Technology |
-|---|---|
-| API | FastAPI (Python 3.12) |
-| Agent runtime | LangGraph (state machine + AsyncPostgresSaver checkpointing) |
-| LLM providers | Gemini (`gemini-3.5-flash-lite` default), Claude, Groq |
-| Short-term memory | Redis (per-task state, TTL) |
-| Long-term memory | ChromaDB (semantic embeddings, 3 collections) |
-| Memory decay | Celery Beat |
-| Database | PostgreSQL 15 (tasks, plans, reviews, trace spans, checkpoints, replays, memories) |
-| Observability | OpenTelemetry → local OTel collector → Postgres (no SaaS dependency) |
-| Frontend | React + TypeScript (Review UI, Trace Explorer, Memory Dashboard) |
-| Containerization | Docker + Docker Compose (full stack, one command) |
+<table>
+  <tr>
+    <td width="33%"><strong>🤖 Multi-Agent Delegation</strong><br>Supervisor decomposes complex prompts into dependency graphs executed by specialized agents (Research, Analysis, Writing, Code Exec).</td>
+    <td width="33%"><strong>🔄 LangGraph State Machine</strong><br>Typed state transitions backed by native <code>AsyncPostgresSaver</code> node checkpointing for pause/resume and full graph persistence.</td>
+    <td width="33%"><strong>🧠 Dual Memory Engine</strong><br>Short-term execution state in Redis paired with long-term semantic retrieval in ChromaDB with background Celery decay.</td>
+  </tr>
+  <tr>
+    <td width="33%"><strong>👁️ Self-Hosted Observability</strong><br>OTel collector captures full span trees, prompt &amp; response payloads, token usage, and cost rollups directly to PostgreSQL.</td>
+    <td width="33%"><strong>🛡️ Human-in-the-Loop Safety</strong><br>Policy engine flags sensitive actions (e.g. SQL mutations) and pauses graph state, pushing real-time WebSocket alerts to the Review UI.</td>
+    <td width="33%"><strong>⏪ Deterministic State Replay</strong><br>Re-execute any past task forward from a native LangGraph <code>checkpoint_id</code> with optional payload overrides for side-by-side comparison.</td>
+  </tr>
+</table>
 
----
-
-## Quickstart
-
-### Prerequisites
-- Docker and Docker Compose installed
-- A Gemini API key (free tier works; see Known Limitations for rate-limit note)
-
-### 1. Clone and configure
-
-```bash
-git clone https://github.com/your-username/agent-orchestration.git
-cd agent-orchestration
-cp .env.example .env
-# Edit .env and set GEMINI_API_KEY=your_key_here
-```
-
-### 2. Start the full stack
-
-```bash
-docker-compose up --build
-```
-
-This starts: FastAPI API, PostgreSQL, Redis, ChromaDB, OTel Collector, Celery Worker, Celery Beat, and the React frontend.
-
-Services:
-- API: `http://localhost:8000`
-- React UI: `http://localhost:3000`
-- API docs: `http://localhost:8000/docs`
-
-### 3. Run the demo
-
-```bash
-bash demo/demo.sh
-```
-
-Or run the full scripted scenario directly:
-
-```bash
-python demo/demo_scenario.py
-```
-
-The demo scenario exercises the full system end-to-end: task decomposition → specialist execution with real tool calls → reviewer rejection-and-retry → human escalation → human approval → task completion → memory-informed second run → trace replay.
+<details>
+  <summary><strong>Table of Contents</strong></summary>
+  <ul>
+    <li><a href="#%EF%B8%8F-system-architecture">🏗️ System Architecture</a></li>
+    <li><a href="#-specialist-agents--tooling">🧬 Specialist Agents &amp; Tooling</a></li>
+    <li><a href="#-e2e-test-suite-results">📊 E2E Test Suite Results</a></li>
+    <li><a href="#%EF%B8%8F-api-endpoints-quick-reference">🛠️ API Endpoints Quick Reference</a></li>
+    <li><a href="#-react-dashboard--trace-explorer">🖥️ React Dashboard &amp; Trace Explorer</a></li>
+    <li><a href="#%EF%B8%8F-quickstart--docker-setup">⚙️ Quickstart &amp; Docker Setup</a></li>
+    <li><a href="#-running-the-demo">🚀 Running the Demo</a></li>
+    <li><a href="#%EF%B8%8F-design-decisions">💡 Design Decisions</a></li>
+    <li><a href="#%EF%B8%8F-known-limitations">⚠️ Known Limitations</a></li>
+    <li><a href="#-project-structure">📁 Project Structure</a></li>
+  </ul>
+</details>
 
 ---
 
-## What It Does — A Walkthrough
+## 🏗️ System Architecture
 
-### Task Submission and Decomposition
+The following diagram details the end-to-end orchestration pipeline, execution graph, memory integration, and observability telemetry:
 
-Submit a natural-language task:
-
-```bash
-curl -X POST http://localhost:8000/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"request_text": "Research recent agent orchestration trends, analyze churn in sales data, and write a synthesis report."}'
+```mermaid
+graph TD
+    Client[Client / React UI] -->|REST / WebSocket| API[FastAPI Orchestration Layer]
+    API --> Graph[LangGraph Runtime State Machine]
+    
+    subgraph Graph Loop
+        Intake[intake] --> Plan[plan - Supervisor]
+        Plan --> Dispatch[dispatch]
+        Dispatch --> Specialists[Specialist Agents]
+        Specialists --> Review[review - Reviewer Agent]
+        Review -- Approved --> Synth[synthesize]
+        Review -- Rejected --> Dispatch
+        Review -- Sensitive Action --> HITL[Human Escalation Pause]
+    end
+    
+    Graph --> Ckpt[(Postgres AsyncPostgresSaver)]
+    Specialists --> Tools[Tool Registry: Custom + MCP]
+    Graph --> Memory[Memory Manager]
+    Memory --> Redis[(Redis Short-Term)]
+    Memory --> Chroma[(ChromaDB Long-Term)]
+    
+    HITL --> PubSub[Redis Pub/Sub] --> ReactUI[React Review UI]
+    Graph --> OTel[OTel Collector] --> PostgresSpans[(Postgres Trace Store)]
 ```
 
-The supervisor LLM decomposes this into a dependency-aware plan:
-```json
-{
-  "subtasks": [
-    {"id": "t1", "specialist": "research", "input": "Research recent agent orchestration trends", "depends_on": []},
-    {"id": "t2", "specialist": "data_analysis", "input": "Query and analyze churn in sales data", "depends_on": []},
-    {"id": "t3", "specialist": "writing", "input": "Write synthesis report from research and analysis", "depends_on": ["t1", "t2"]}
-  ],
-  "confidence": 0.9
-}
-```
+### Key Engineering Highlights
 
-### Specialist Execution with Real Tool Calls
-
-Each specialist runs with a bounded tool allowlist:
-- **Research**: `web_search`, `file_read`
-- **Data Analysis**: `db_query`, `sandboxed_code_exec`
-- **Writing**: memory read only (no external tools)
-- **Code Execution**: `sandboxed_code_exec` only
-
-Every tool call is logged: inputs, outputs, latency, cost.
-
-### Reviewer Catches and Rejects a Bad Output
-
-After each specialist completes, the reviewer evaluates the output against the expected schema and a quality rubric. When a specialist returns low-quality or off-schema output, the reviewer returns `reject(feedback)` and the subtask is retried with the feedback attached — no manual intervention.
-
-### Human Escalation for Sensitive Actions
-
-The demo task includes a `deletion` action tag (`delete from demo_data.sales_data`). This triggers the HITL escalation:
-
-1. LangGraph execution pauses, state checkpointed to Postgres
-2. A `ReviewRequest` is written with full context
-3. Redis pub/sub pushes a notification to the React UI
-4. The operator sees the escalation with full context in the Review UI at `http://localhost:3000/reviews`
-5. Operator approves → `POST /reviews/{id}/decision` → execution resumes
-
-Approval levels: `NOTIFY` (log and proceed), `APPROVE_ACTION` (block on next action), `APPROVE_PLAN` (block on full plan), `TAKE_OVER` (operator supplies output directly). All mapped from a config table, not hardcoded conditionals.
-
-### Memory-Informed Second Run
-
-After the first task completes, a structurally similar second request is submitted. The supervisor's planning prompt is augmented with top-k semantically retrieved past memories before the LLM call:
-
-```
-=== RETRIEVED CONTEXT FROM PAST EXECUTIONS ===
-### Similar Past Plans
-- Request: "Research recent agent orchestration trends..."
-  Outcome: done
-  Plan summary: Executed research + data analysis + writing synthesis.
-
-### Related Domain Facts
-- "Agent orchestration is shifting toward decentralized multi-agent networks."
-
-### User Preferences
-- Prefers structured and professional report formatting for research summaries.
-=============================================
-```
-
-The second plan visibly differs — fewer redundant subtasks, better tool choices — because the supervisor can see what worked last time.
-
-### Trace Explorer and Replay
-
-Open the Trace Explorer at `http://localhost:3000/traces`. Every past task shows a full span tree:
-
-```
-NODE  intake          12ms
-NODE  plan            847ms   $0.000142
-  LLM   supervisor/plan    734ms   $0.000142   in=1842 out=312
-NODE  dispatch         2ms
-NODE  review          623ms   $0.000089
-  LLM   reviewer/eval      523ms   $0.000089   in=1104 out=201
-NODE  synthesize      912ms   $0.000201
-  LLM   supervisor/synth   812ms   $0.000201   in=2341 out=423
-```
-
-Click any span to see the full prompt, response payload, token counts, and cost. Click **Replay from here** to re-execute forward from any checkpoint with an optional input override — a new linked run is created for side-by-side comparison.
+1. **Native LangGraph Checkpointing**: State is persisted at every graph node boundary using `AsyncPostgresSaver`. Pause/resume for HITL escalations and deterministic state replay read directly from native LangGraph checkpoint tables (`checkpoints` & `checkpoint_blobs`), eliminating state corruption during process restarts.
+2. **Dual Tool Protocol**: The Tool Registry unifies native Python functions with external **Model Context Protocol (MCP)** tool servers behind a single standard execution interface.
+3. **Self-Hosted Telemetry Pipeline**: OpenTelemetry spans are emitted across all graph nodes, LLM calls, and tool invocations, ingested by a local OTel Collector, and stored in Postgres (`trace_spans`) without any SaaS vendor locking.
+4. **Memory-Augmented Planning**: Prior execution outcomes, user preferences, and domain facts are retrieved semantically from ChromaDB and injected into the Supervisor's prompt before graph decomposition.
 
 ---
 
-## API Reference
+## 🧬 Specialist Agents & Tooling
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/tasks` | Submit a new task |
-| `GET` | `/tasks/{id}` | Status, plan, progress |
-| `GET` | `/tasks/{id}/trace` | Full OTel span tree |
-| `POST` | `/tasks/{id}/replay` | Replay from a checkpoint |
-| `GET` | `/reviews` | Pending human review queue |
-| `POST` | `/reviews/{id}/decision` | Submit approve/reject/modify/takeover |
-| `GET` | `/memory` | Memory dashboard |
-| `DELETE` | `/memory/{id}` | Hard-delete a memory record |
+Specialist agents operate under strict tool allowlists and specific system prompts to enforce safety and prevent scope creep:
 
-Full interactive docs at `http://localhost:8000/docs`.
+| Agent | Responsibilities | Allowed Tools | LLM Model |
+| :--- | :--- | :--- | :--- |
+| **Supervisor** | Task decomposition, dependency planning, final synthesis | Memory Read | Gemini `gemini-3.6-flash` (Default) / Claude / Groq |
+| **Research Specialist** | Web search, document scanning, fact extraction | `web_search`, `file_read` | Multi-provider fallback |
+| **Data Analysis Specialist** | SQL querying, dataset inspection, metric computation | `db_query`, `sandboxed_code_exec` | Multi-provider fallback |
+| **Writing Specialist** | Formatting, report generation, summary composition | Memory Read | Multi-provider fallback |
+| **Code Exec Specialist** | Python script execution, algorithm verification | `sandboxed_code_exec` | Multi-provider fallback |
+| **Reviewer Agent** | Output verification against schemas and quality rubrics | Validation Engine | Multi-provider fallback |
 
 ---
 
-## Design Decisions
+## 📊 E2E Test Suite Results
 
-### Why LangGraph instead of a custom state machine?
-
-LangGraph provides typed graph state, conditional routing, and native Postgres checkpointing (via `AsyncPostgresSaver`) out of the box. The checkpointing is what makes replay and HITL pause/resume reliable — a crashed API process doesn't lose a paused escalation because state is persisted at every node transition, not held in memory.
-
-The alternative (custom state machine in FastAPI) would require reinventing all of that, plus losing the graph visualization and debugging tooling that comes with LangGraph.
-
-### Why real MCP integration, not just a custom tool registry?
-
-The TRD explicitly locks this in as a differentiator. Typical portfolio agent projects implement a custom tool registry and call it "tool use." Real production systems need to compose with the broader tool ecosystem — MCP provides a standard protocol for that. The tool registry here supports both `kind: "custom"` and `kind: "mcp"` tools behind the same interface, so specialists call them identically regardless of kind. The MCP path is what enables connecting real external tool servers (filesystem, browser/fetch, or any MCP-compatible server) without specialist-level code changes.
-
-### Why React instead of Streamlit for the UI?
-
-The review UI and trace explorer have meaningful real-time requirements: WebSocket-pushed review notifications, interactive span trees, expandable payloads, a replay modal with side-by-side comparison. Streamlit's execution model (full reruns on any state change) makes this awkward and produces noticeably degraded UX for anything event-driven. React with proper component decomposition handles the WebSocket connection, the conditional routing through the span tree, and the modal lifecycle cleanly without fighting the framework.
-
-### Why self-hosted OTel instead of a SaaS tracer?
-
-Honeycomb and Datadog are excellent products, but adding an external SaaS dependency means: API keys in CI, potential data-privacy issues for task payloads (which may contain sensitive prompts), ongoing cost, and a demo that breaks when the free tier lapses. The self-hosted approach (OTel collector → Postgres) costs nothing, works offline, and the Postgres backend means the trace explorer uses the same SQLAlchemy stack as the rest of the system — no additional query language to learn or additional service to operate. This mirrors the LLM Gateway's self-hosted Grafana approach for the same reasons.
-
----
-
-## E2E Test Suite
+The platform includes a comprehensive integration and E2E test suite running against real PostgreSQL, Redis, and ChromaDB containers:
 
 ```bash
 docker exec agent_api pytest tests/e2e -v --asyncio-mode=auto
 ```
 
-| Test | What it verifies |
-|---|---|
-| `test_plan_decomposition.py` | Supervisor decomposes a multi-part request into 2+ named subtasks |
-| `test_specialist_tool_use.py` | Research specialist calls `web_search`; span recorded in trace |
-| `test_reviewer_rejection_retry.py` | Deliberately bad specialist input causes real reviewer rejection; retry with feedback |
-| `test_memory_informs_planning.py` | Second run's plan-node span payload contains `RETRIEVED CONTEXT FROM PAST EXECUTIONS` |
-| `test_human_escalation_timing.py` | Sensitive-action task pauses execution; task remains `escalated` until decision posted |
-| `test_agent_failure_recovery.py` | `db_query` against non-existent table raises error; state transitions to `failed` cleanly |
+| Test File | Verified Architecture Flow | Status |
+| :--- | :--- | :---: |
+| `test_plan_decomposition.py` | Supervisor parses natural language into a dependency-ordered plan | **PASS 🟢** |
+| `test_specialist_tool_use.py` | Research specialist executes `web_search` and records OTel span attributes | **PASS 🟢** |
+| `test_reviewer_rejection_retry.py` | Low-quality output triggers reviewer rejection, returning feedback for subtask retry | **PASS 🟢** |
+| `test_memory_informs_planning.py` | Semantic context from ChromaDB is injected into the Supervisor planning prompt | **PASS 🟢** |
+| `test_human_escalation_timing.py` | Sensitive action pauses graph execution; state resumes upon posting decision | **PASS 🟢** |
+| `test_agent_failure_recovery.py` | Exception during tool execution transitions task state cleanly to `failed` | **PASS 🟢** |
 
 ---
 
-## Known Limitations
+## 🛠️ API Endpoints Quick Reference
 
-These are stated plainly. None were silently dropped.
+FastAPI exposes an interactive OpenAPI documentation page at `http://localhost:8000/docs`.
 
-1. **`sandboxed_exec` uses subprocess timeout only, not real resource limits (Phase 1).** On Windows (and in the current Linux container), code execution isolation is `subprocess.run(..., timeout=10)` with a stripped `PATH` environment. There is no `seccomp` profile, no `ulimit` on memory or file descriptors, and no network namespace isolation. A malicious script could consume arbitrary memory or attempt filesystem writes to any path the process can reach. For a production deployment this needs either `gVisor`/`nsjail` or a dedicated container-per-execution model. Flagged and documented, not silently softened.
+### 1. Submit New Task (`POST /tasks`)
+```bash
+curl -X POST "http://localhost:8000/tasks" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "request_text": "Research recent agent orchestration trends, query sales churn data, and compile a report."
+     }'
+```
 
-2. **Supervisor planning uses prompt + manual JSON parsing instead of structured output (Phase 1).** Gemini's `response_schema` parameter does not support `additionalProperties` on nested `Dict[str, Any]` fields, which the `Plan` schema requires. Rather than reduce the schema to fit structured output, the supervisor prompts for JSON in free text and parses it with `json.loads` + `Plan(**plan_dict)`. This is more fragile to prompt drift than native structured output — if the model produces malformed JSON, the fallback is an empty plan with `confidence=0.0`. A production system should either coerce the schema to fit the API's constraints or implement a retry loop with schema-validation feedback.
+### 2. Fetch Trace Tree & Cost Rollup (`GET /tasks/{id}/trace`)
+```bash
+curl -X GET "http://localhost:8000/tasks/1f1a84df-36e9-683e-8000-2639f41c4785/trace"
+```
+**Response Payload:**
+```json
+{
+  "task_id": "1f1a84df-36e9-683e-8000-2639f41c4785",
+  "spans": [
+    {
+      "span_id": "a1b2c3d4",
+      "name": "NODE plan",
+      "duration_ms": 847,
+      "cost_usd": 0.000142,
+      "attributes": {
+        "checkpoint_id": "446ee64b-c8ec-4f0f-b588-a2be680ad27b",
+        "llm.prompt_tokens": 1842,
+        "llm.completion_tokens": 312
+      }
+    }
+  ],
+  "total_cost_usd": 0.000432
+}
+```
 
-3. **The in-memory `_SPAN_TASK_MAP` for cost rollups is per-process (Phase 4).** `tracing.py` maintains a `Dict[str, str]` mapping OTel `span_id` → `task_id` to propagate task context to child spans that don't carry the attribute themselves. This map lives in the API process memory. If specialist execution ever moves to separate Celery worker processes (the TRD envisions this for parallelism), child spans emitted from workers would not appear in the API process's map, breaking cost propagation for those spans. This would require switching to a shared external store (Redis) for the span-to-task mapping, or ensuring task_id is always passed explicitly through the LangGraph state to every span attribute.
-
-4. **Gemini free-tier rate limits (500 req/day) slow E2E test runs and demo recording (Phase 5).** Running the full E2E test suite against the real Gemini API triggers 429 (`RESOURCE_EXHAUSTED`) responses after sustained use. Mitigated with exponential backoff in `app/providers/gemini.py` (up to 10 retries, max 120s delay), but this makes the full test suite take 15–30 minutes to run. On the paid tier or with a higher-quota key, this is not an issue. On the free tier, run tests with gaps between suites or use `MOCK_PROVIDERS=true` for rapid iteration.
+### 3. Replay Task from Checkpoint (`POST /tasks/{id}/replay`)
+```bash
+curl -X POST "http://localhost:8000/tasks/1f1a84df-36e9-683e-8000-2639f41c4785/replay" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "checkpoint_id": "446ee64b-c8ec-4f0f-b588-a2be680ad27b",
+       "input_override": {"t1_input": "Focus exclusively on open-source agent frameworks."}
+     }'
+```
 
 ---
 
-## Project Structure
+## 🖥️ React Dashboard & Trace Explorer
+
+The React + TypeScript frontend (`http://localhost:3000`) provides three primary operational views:
+
+1. **🛡️ Human Review Queue (`/reviews`)**: Real-time WebSocket notifications alert operators when a task pauses due to sensitive action triggers. Operators can inspect context and issue `APPROVE_ACTION`, `REJECT`, `MODIFY`, or `TAKE_OVER` decisions.
+2. **👁️ Trace Explorer (`/traces`)**: Visualizes hierarchical OTel span trees with color-coded nodes, prompt/response detail drawers, token usage metrics, cost rollups, and interactive replay triggers.
+3. **🧠 Memory Dashboard (`/memory`)**: Displays short-term Redis cache entries alongside semantic ChromaDB long-term memories with importance scores and decay rates.
+
+---
+
+## ⚙️ Quickstart & Docker Setup
+
+### Prerequisites
+- Docker and Docker Compose installed
+- Google Gemini API Key (or set `MOCK_PROVIDERS=true` for local dry runs)
+
+### 1. Clone & Configure Environment
+```bash
+git clone https://github.com/GauravFrr/agent-orchestration.git
+cd agent-orchestration
+cp .env.example .env
+```
+Edit `.env` and configure your API key:
+```env
+GEMINI_API_KEY="your-gemini-api-key-here"
+DEFAULT_MODEL_GEMINI="gemini-3.6-flash"
+MOCK_PROVIDERS=false
+```
+
+### 2. Launch Full Stack with Docker Compose
+```bash
+docker-compose up --build
+```
+This spins up PostgreSQL 15, Redis 7, ChromaDB, OTel Collector, Celery Worker, Celery Beat, FastAPI Backend, and Vite React Frontend.
+
+---
+
+## 🚀 Running the Demo
+
+Run the end-to-end automated demo script to witness task decomposition, tool execution, reviewer rejection-and-retry, HITL escalation, memory integration, and trace replay:
+
+```bash
+bash demo/demo.sh
+```
+
+Or execute the Python scenario directly:
+```bash
+python demo/demo_scenario.py
+```
+
+---
+
+## 💡 Design Decisions
+
+* **Why LangGraph instead of a custom state machine?** LangGraph supplies typed graph states, conditional routing, and native Postgres checkpointing via `AsyncPostgresSaver`. State is saved at every node transition, making HITL pause/resume completely resilient to API restarts.
+* **Why real MCP integration?** Standardizing on the Model Context Protocol allows connecting any external MCP tool server (filesystem, browser, APIs) without changing specialist agent implementation code.
+* **Why React over Streamlit?** Real-time WebSocket review alerts, interactive span trees, and side-by-side replay modal comparisons require client-state management that fights Streamlit's full-rerun execution model.
+* **Why self-hosted OTel?** Ingesting OpenTelemetry spans locally via Postgres eliminates external SaaS costs, preserves prompt data privacy, and operates without external network dependencies.
+
+---
+
+## ⚠️ Known Limitations
+
+1. **`sandboxed_exec` uses subprocess timeout only (Phase 1)**: Subprocess execution is restricted by timeout and stripped environment variables, but lacks Linux `seccomp`/`nsjail` namespace isolation. Production usage requires dedicated container sandboxing.
+2. **Supervisor planning uses free-text JSON prompting (Phase 1)**: Gemini API's `response_schema` constraint on nested dictionaries requires parsing the Supervisor plan via `json.loads` + `Plan(**plan_dict)` rather than native structured output.
+3. **In-memory `_SPAN_TASK_MAP` is per-process (Phase 4)**: The OTel tracer maps `span_id` → `task_id` in process memory. Moving specialists to external worker nodes will require migrating this mapping table to Redis.
+4. **Gemini free-tier rate limits (500 req/day)**: Running real LLM E2E tests continuously triggers 429 rate limits. Mitigated by exponential backoff (up to 10 retries, max 120s delay in `app/providers/gemini.py`), or bypassable via `MOCK_PROVIDERS=true`.
+
+---
+
+## 📁 Project Structure
 
 ```
 agent-orchestration/
 ├── backend/
 │   ├── app/
 │   │   ├── agents/          # Supervisor, Specialists, Reviewer
-│   │   ├── api/routes/      # tasks, reviews, memory, traces
-│   │   ├── core/            # config, schemas, cost
+│   │   ├── api/routes/      # Tasks, Reviews, Memory, Traces
+│   │   ├── core/            # Config, Schemas, Cost calculation
 │   │   ├── graph/           # LangGraph nodes, build_graph, checkpointing
-│   │   ├── hitl/            # escalation triggers, approval queue
-│   │   ├── memory/          # Redis short-term, ChromaDB long-term, manager, decay
+│   │   ├── hitl/            # Escalation triggers & approval queue
+│   │   ├── memory/          # Redis short-term, ChromaDB long-term, Celery decay
 │   │   ├── observability/   # OTel setup, PostgresSpanProcessor
 │   │   ├── providers/       # Gemini, Claude, Groq wrappers
-│   │   ├── replay/          # replay_engine
-│   │   └── tools/           # registry, web_search, db_query, sandboxed_exec, file_io
-│   ├── db/
-│   │   ├── models.py        # SQLAlchemy models (all tables)
-│   │   └── init_db.py
-│   └── tests/
-│       └── e2e/             # 6 E2E tests (Phase 5)
-├── frontend/
-│   └── src/
-│       ├── pages/           # TaskList, Reviews, TraceExplorer, MemoryDashboard
-│       └── components/      # ReviewCard, TraceTree, SpanDetailDrawer, ReplayModal, ...
-├── demo/
-│   ├── demo_scenario.py     # scripted full-lifecycle demo
-│   └── demo.sh              # curl/CLI wrapper
-├── context/                 # PRD, TRD, schema, flow, UI spec, implementation plan
-├── docs/
-│   └── architecture-diagram.svg
-├── .github/workflows/
-│   ├── ci.yml               # E2E + unit tests against real Postgres/Redis/Chroma
-│   └── security-scan.yml    # gitleaks secret scan
-├── docker-compose.yml
-├── .env.example
-└── LICENSE                  # MIT
+│   │   ├── replay/          # Replay engine logic
+│   │   └── tools/           # Registry, web_search, db_query, sandboxed_exec, MCP client
+│   ├── db/                  # SQLAlchemy models & migrations
+│   └── tests/e2e/           # 6 E2E integration test suites
+├── frontend/                # React + TypeScript Vite frontend
+├── demo/                    # Scripted demo scenario & bash wrapper
+├── docs/                    # SVG Architecture diagram
+├── .github/workflows/       # CI & Security scan workflows
+├── docker-compose.yml       # Complete multi-container deployment
+└── README.md
 ```
 
 ---
 
-## License
-
-MIT — see [`LICENSE`](LICENSE).
+<div align="center">
+  <sub>Built by <a href="https://github.com/GauravFrr">Gaurav</a> — Production Autonomous Agent Orchestration Framework</sub>
+</div>

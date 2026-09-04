@@ -1,12 +1,13 @@
+import asyncio
 import logging
 from typing import Any
-import asyncio
+
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
 
-from app.providers.base import BaseProvider, NonRetryableProviderError, ProviderRateLimitError, RetryableProviderError
 from app.core.config import settings
+from app.providers.base import BaseProvider, NonRetryableProviderError, ProviderRateLimitError, RetryableProviderError
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +68,12 @@ class GeminiProvider(BaseProvider):
                     return mock_json, 15, 10
                 elif hasattr(response_schema, "__name__") and response_schema.__name__ == "ReviewResult":
                     return '{"verdict": "approve", "feedback": ""}', 10, 5
-            
+
             # Check if this is a specialist agent call
             is_specialist = any("Specialist" in msg.get("content", "") or "final_answer" in msg.get("content", "") for msg in messages)
             if is_specialist:
                 return '{"thought": "I have completed the subtask.", "final_answer": {"overview": "Trends include LangGraph, supervisor patterns, and sandboxed code execution."}}', 10, 5
-            
+
             return "This is a mocked Gemini response.", 15, 10
 
         if not self.client:
@@ -98,7 +99,7 @@ class GeminiProvider(BaseProvider):
             config.system_instruction = system_instruction
         if response_schema is not None:
             config.response_mime_type = "application/json"
-            
+
             def clean_additional_properties(schema: Any) -> Any:
                 if isinstance(schema, dict):
                     return {k: clean_additional_properties(v) for k, v in schema.items() if k != "additionalProperties"}

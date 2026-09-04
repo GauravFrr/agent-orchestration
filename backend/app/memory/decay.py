@@ -1,13 +1,14 @@
 import asyncio
 import logging
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
+
 from celery import Celery
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 
 from app.core.config import settings
-from db.models import AsyncSessionLocal, Memory
 from app.memory.long_term import delete_from_collection
+from db.models import AsyncSessionLocal, Memory
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +46,10 @@ async def run_decay_and_pruning():
             for mem in memories:
                 # Lower the importance score
                 new_score = round(mem.importance_score * DECAY_FACTOR, 4)
-                
+
                 if new_score < PRUNE_THRESHOLD:
                     logger.info(f"Memory {mem.id} score ({new_score}) is below threshold ({PRUNE_THRESHOLD}). Hard-purging.")
-                    
+
                     # 1. Hard delete from ChromaDB
                     collection_map = {
                         "plan": "plans",
@@ -58,14 +59,14 @@ async def run_decay_and_pruning():
                     collection_name = collection_map.get(mem.memory_type)
                     if collection_name:
                         await delete_from_collection(collection_name, str(mem.id))
-                    
+
                     # 2. Hard delete from Postgres
                     await session.delete(mem)
                 else:
                     # Update the score
                     mem.importance_score = new_score
                     logger.debug(f"Decayed memory {mem.id} score to {new_score}")
-            
+
             await session.commit()
             logger.info("Finished memory decay and pruning job successfully.")
     except Exception as e:
@@ -81,5 +82,5 @@ def decay_and_prune_memories():
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-    
+
     loop.run_until_complete(run_decay_and_pruning())

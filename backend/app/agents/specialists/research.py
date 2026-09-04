@@ -1,10 +1,11 @@
 import json
 import logging
 from typing import Any, Dict
-from app.core.config import settings
-from app.providers import get_default_provider
+
 from app.agents.prompts.specialist_prompts import SPECIALIST_SYSTEM_PROMPT
 from app.agents.supervisor import clean_json_text
+from app.core.config import settings
+from app.providers import get_default_provider
 from app.tools.registry import invoke_tool
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ class ResearchSpecialist:
             subtask_input=json.dumps(subtask_input, indent=2),
             feedback_history=feedback_history or "None"
         )
-        
+
         # Guide the model on tool use formatting
         system_instruction += (
             f"\n\nYou have access to the following tools: {', '.join(ALLOWED_TOOLS)}.\n"
@@ -82,8 +83,8 @@ Make sure final_answer strictly conforms to this expected output schema:
 
         model = settings.DEFAULT_MODEL_GEMINI if settings.GEMINI_API_KEY or settings.MOCK_PROVIDERS else settings.DEFAULT_MODEL_CLAUDE
 
-        from app.observability.tracing import get_tracer
         from app.observability.cost import calculate_span_cost
+        from app.observability.tracing import get_tracer
         tracer = get_tracer()
 
         for step in range(max_steps):
@@ -115,12 +116,12 @@ Make sure final_answer strictly conforms to this expected output schema:
             try:
                 cleaned_response = clean_json_text(response)
                 parsed = json.loads(cleaned_response)
-                
+
                 # Check for tool call
                 if "tool_call" in parsed and parsed["tool_call"]:
                     tool_name = parsed["tool_call"]["name"]
                     arguments = parsed["tool_call"].get("arguments", {})
-                    
+
                     if tool_name not in ALLOWED_TOOLS:
                         tool_result = f"Error: Tool '{tool_name}' is not in your allowed tool list: {ALLOWED_TOOLS}."
                     else:
@@ -134,14 +135,14 @@ Make sure final_answer strictly conforms to this expected output schema:
                         )
                         tool_result = json.dumps(tool_result_data)
                         tool_was_called = True
-                    
+
                     # Append response and tool result to messages
                     messages.append({"role": "assistant", "content": response})
                     messages.append({
                         "role": "user",
                         "content": f"Tool '{tool_name}' returned: {tool_result}"
                     })
-                
+
                 # Check for final answer — only accept if tool was called first
                 elif "final_answer" in parsed:
                     if not tool_was_called and tool_skip_retries < MAX_TOOL_RETRIES:
@@ -164,7 +165,7 @@ Make sure final_answer strictly conforms to this expected output schema:
                     else:
                         logger.info("Research specialist completed successfully with final_answer.")
                         return parsed["final_answer"], total_in_tokens, total_out_tokens
-                
+
                 else:
                     logger.warning("Research specialist response didn't contain tool_call or final_answer.")
                     messages.append({"role": "assistant", "content": response})
@@ -172,7 +173,7 @@ Make sure final_answer strictly conforms to this expected output schema:
                         "role": "user",
                         "content": "Your response must contain either 'tool_call' or 'final_answer' in valid JSON format."
                     })
-                    
+
             except Exception as e:
                 logger.error(f"Error parsing Research specialist output: {str(e)}. Raw: {response}")
                 messages.append({"role": "assistant", "content": response})

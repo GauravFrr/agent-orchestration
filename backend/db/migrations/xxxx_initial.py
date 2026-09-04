@@ -2,8 +2,8 @@
 Initial migration to set up the operational schema (tasks, subtasks, tool_invocations)
 and the segmented demo_data schema.
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.

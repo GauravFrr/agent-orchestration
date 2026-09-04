@@ -1,11 +1,13 @@
 import logging
-from langgraph.graph import StateGraph, END
-from app.graph.state import AgentState
+
+from langgraph.graph import END, StateGraph
+
+from app.graph.nodes.dispatch import dispatch_node
 from app.graph.nodes.intake import intake_node
 from app.graph.nodes.plan import plan_node
-from app.graph.nodes.dispatch import dispatch_node
 from app.graph.nodes.review import review_node
 from app.graph.nodes.synthesize import synthesize_node
+from app.graph.state import AgentState
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +37,7 @@ def should_continue(state: AgentState) -> str:
     if all_done:
         logger.info("All plan subtasks completed. Routing to synthesis node.")
         return "synthesize"
-    
+
     # Check if we hit a failure state (e.g. error keys in results or empty ready subtasks)
     # Check if any ready subtasks exist
     ready_subtasks = []

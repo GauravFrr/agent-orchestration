@@ -1,11 +1,11 @@
 import asyncio
 import logging
-from uuid import UUID, uuid4
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+from uuid import UUID, uuid4
 
-from db.models import AsyncSessionLocal, Task, Replay
 from app.graph.checkpointing import load_checkpoint
+from db.models import AsyncSessionLocal, Replay, Task
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ async def execute_replay(
         # Create new task row
         resulting_task_id = str(uuid4())
         resulting_uuid = UUID(resulting_task_id)
-        
+
         new_task = Task(
             id=resulting_uuid,
             request_text=f"[Replay of {original_task_id[:8]}] {new_request_text}",
@@ -67,7 +67,7 @@ async def execute_replay(
     restored_state = dict(checkpoint_snapshot)
     restored_state["task_id"] = resulting_task_id
     restored_state["request_text"] = new_request_text
-    
+
     if input_override:
         if "plan" in input_override and "plan" in restored_state:
             restored_state["plan"] = input_override["plan"]

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -69,7 +70,7 @@ async def initialize_database():
 
         # 4. Seed mock data into sample tables
         logger.info("Seeding mock data into demo_data tables...")
-        
+
         # Clear existing rows to prevent duplicate primary key errors during repeated seeds
         await conn.execute(text("TRUNCATE TABLE demo_data.sales_data RESTART IDENTITY CASCADE;"))
         await conn.execute(text("TRUNCATE TABLE demo_data.inventory RESTART IDENTITY CASCADE;"))
@@ -99,7 +100,7 @@ async def initialize_database():
 
         # 5. Grant Permissions (Segmentation Boundary)
         logger.info("Configuring database segmentation grants...")
-        
+
         # Re-grant orchestrator permissions on public
         await conn.execute(text("GRANT ALL PRIVILEGES ON SCHEMA public TO orchestrator;"))
         await conn.execute(text("GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO orchestrator;"))
@@ -107,12 +108,12 @@ async def initialize_database():
 
         # Revoke public access from analyst
         await conn.execute(text("REVOKE ALL PRIVILEGES ON SCHEMA public FROM analyst;"))
-        
+
         # Grant usage & read-only select on demo_data schema to analyst
         await conn.execute(text("GRANT USAGE ON SCHEMA demo_data TO analyst;"))
         await conn.execute(text("GRANT SELECT ON ALL TABLES IN SCHEMA demo_data TO analyst;"))
         await conn.execute(text("GRANT SELECT ON ALL SEQUENCES IN SCHEMA demo_data TO analyst;"))
-        
+
         # Alter default privileges so future tables in demo_data are readable by analyst
         await conn.execute(text("ALTER DEFAULT PRIVILEGES IN SCHEMA demo_data GRANT SELECT ON TABLES TO analyst;"))
 

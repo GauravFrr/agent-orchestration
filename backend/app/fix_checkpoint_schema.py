@@ -1,6 +1,8 @@
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine
+
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
 
 async def main():
     engine = create_async_engine('postgresql+psycopg://postgres:postgres@db:5432/orchestration')

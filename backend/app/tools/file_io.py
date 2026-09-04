@@ -1,5 +1,6 @@
-import os
 import logging
+import os
+
 from app.tools.registry import register_tool
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ def resolve_path(filepath: str) -> str:
     # Remove leading slash or backslash to treat path as relative
     clean_filepath = filepath.lstrip("/\\")
     resolved = os.path.abspath(os.path.join(SANDBOX_DIR, clean_filepath))
-    
+
     # Check if resolved path is inside SANDBOX_DIR
     if not resolved.startswith(SANDBOX_DIR):
         raise PermissionError(f"Security Access Violation: Path '{filepath}' escapes sandbox boundary.")
@@ -35,7 +36,7 @@ def file_read(filepath: str) -> dict:
         resolved = resolve_path(filepath)
         if not os.path.exists(resolved):
             return {"success": False, "error": f"File '{filepath}' not found."}
-        
+
         with open(resolved, "r", encoding="utf-8") as f:
             content = f.read()
         return {"success": True, "content": content}
@@ -52,7 +53,7 @@ def file_write(filepath: str, content: str) -> dict:
         resolved = resolve_path(filepath)
         # Create directories in path if they don't exist
         os.makedirs(os.path.dirname(resolved), exist_ok=True)
-        
+
         with open(resolved, "w", encoding="utf-8") as f:
             f.write(content)
         return {"success": True, "message": f"Successfully wrote to '{filepath}'."}

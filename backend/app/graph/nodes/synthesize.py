@@ -1,11 +1,11 @@
 import logging
 from datetime import datetime
 from uuid import UUID
-from app.graph.state import AgentState
-from app.agents.supervisor import SupervisorAgent
-from db.models import AsyncSessionLocal, Task
 
+from app.agents.supervisor import SupervisorAgent
+from app.graph.state import AgentState
 from app.observability.tracing import get_tracer
+from db.models import AsyncSessionLocal, Task
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +44,8 @@ async def synthesize_node(state: AgentState) -> dict:
         supervisor = SupervisorAgent()
         synthesis_output, in_t, out_t = await supervisor.synthesize(request_text, results, task_id=str(task_id))
 
-        from app.core.cost import record_llm_cost
         from app.core.config import settings
+        from app.core.cost import record_llm_cost
         model = settings.DEFAULT_MODEL_GEMINI if (settings.GEMINI_API_KEY or settings.MOCK_PROVIDERS) else settings.DEFAULT_MODEL_CLAUDE
         await record_llm_cost(task_id, model, in_t, out_t)
 
@@ -53,7 +53,7 @@ async def synthesize_node(state: AgentState) -> dict:
     async with AsyncSessionLocal() as session:
         task_uuid = UUID(task_id)
         task = await session.get(Task, task_uuid)
-        
+
         if task:
             task.status = "done"
             # In Phase 1 we can save the synthesis response in a custom field or serialize it.
@@ -69,11 +69,11 @@ async def synthesize_node(state: AgentState) -> dict:
             plan_data = dict(task.plan) if task.plan else {}
             plan_data["synthesis"] = synthesis_output
             task.plan = plan_data
-            
+
             task.completed_at = datetime.utcnow()
             await session.commit()
             logger.info(f"Task {task_id} completed. Final synthesis saved.")
-            
+
             # Save final working state to Redis and set 24h expiration
             from app.memory.short_term import save_working_state, set_working_state_ttl
             errors = state.get("errors", {})
@@ -81,8 +81,9 @@ async def synthesize_node(state: AgentState) -> dict:
             set_working_state_ttl(task_id)
 
             # Extract and store long-term semantic memories
-            from app.memory.manager import MemoryManager
             import asyncio
+
+            from app.memory.manager import MemoryManager
             asyncio.create_task(MemoryManager().create_memories(task_id, request_text, task.plan, "done"))
         else:
             logger.error(f"Task with ID {task_id} not found in database during synthesis.")

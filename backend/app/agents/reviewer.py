@@ -1,10 +1,12 @@
 import json
 import logging
+
 from pydantic import BaseModel, Field
-from app.core.config import settings
-from app.providers import get_default_provider
+
 from app.agents.prompts.reviewer_prompts import REVIEWER_SYSTEM_PROMPT
 from app.agents.supervisor import clean_json_text
+from app.core.config import settings
+from app.providers import get_default_provider
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +49,9 @@ class ReviewerAgent:
         ]
 
         model = settings.DEFAULT_MODEL_GEMINI if settings.GEMINI_API_KEY or settings.MOCK_PROVIDERS else settings.DEFAULT_MODEL_CLAUDE
-        
-        from app.observability.tracing import get_tracer
+
         from app.observability.cost import calculate_span_cost
+        from app.observability.tracing import get_tracer
         tracer = get_tracer()
 
         logger.info(f"Reviewer calling LLM ({model}) to review {specialist} output...")

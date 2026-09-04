@@ -1,7 +1,7 @@
 import logging
 import time
-from typing import Any, Callable, Dict, List, Optional
 from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ async def invoke_tool(
 
     from app.observability.tracing import get_tracer
     tracer = get_tracer()
-    
+
     span_attrs = {
         "span_type": "tool_call",
         "actor": tool_name,
@@ -92,11 +92,13 @@ async def invoke_tool(
     if subtask_id and task_id:
         try:
             from uuid import UUID as _UUID
+
+            from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+            from sqlalchemy.orm import sessionmaker
+
             from app.core.config import settings
             from db.models import ToolInvocation
-            from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-            from sqlalchemy.orm import sessionmaker
-            
+
             engine = create_async_engine(settings.DATABASE_URL)
             async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
             async with async_session() as session:
@@ -136,10 +138,10 @@ def get_registered_tools() -> List[Dict[str, Any]]:
 
 # Auto-import tools to register them
 try:
-    import app.tools.web_search
+    import app.tools.db_query
     import app.tools.file_io
     import app.tools.sandboxed_exec
-    import app.tools.db_query
+    import app.tools.web_search
 except ImportError as e:
     logger.debug(f"Tool auto-import notice: {e}")
 

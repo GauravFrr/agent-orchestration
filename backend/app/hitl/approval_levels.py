@@ -1,6 +1,7 @@
 import logging
-from typing import Dict, Any
-from app.hitl.triggers import get_config_val, MANDATORY_SENSITIVE_TAGS
+from typing import Any, Dict
+
+from app.hitl.triggers import MANDATORY_SENSITIVE_TAGS, get_config_val
 
 logger = logging.getLogger(__name__)
 

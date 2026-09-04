@@ -1,8 +1,10 @@
 import logging
 from typing import Any, Dict, List, Optional
+
 from sqlalchemy import select
-from db.models import AsyncSessionLocal, HITLConfig
+
 from app.core.schemas import Plan, Subtask
+from db.models import AsyncSessionLocal, HITLConfig
 
 logger = logging.getLogger(__name__)
 

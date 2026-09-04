@@ -1,8 +1,10 @@
 from datetime import datetime
-from uuid import UUID
-from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
 
 class TaskStatus(str, Enum):
     INTAKE = "intake"

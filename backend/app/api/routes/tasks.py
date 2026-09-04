@@ -1,13 +1,14 @@
 import logging
 from uuid import UUID, uuid4
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.schemas import TaskCreate, TaskResponse
 from app.graph.build_graph import build_workflow
-from db.models import get_db_session, Task
+from db.models import Task, get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ async def run_task_workflow(task_id: UUID, request_text: str):
             await cp.conn.open()
         except Exception:
             pass
-    
+
     initial_state = {
         "task_id": str(task_id),
         "request_text": request_text,
@@ -40,10 +41,10 @@ async def run_task_workflow(task_id: UUID, request_text: str):
         "synthesis": "",
         "status": "intake"
     }
-    
+
     from app.observability.tracing import get_tracer
     tracer = get_tracer()
-    
+
     try:
         config = {"configurable": {"thread_id": str(task_id)}}
         with tracer.start_as_current_span(
@@ -78,7 +79,7 @@ async def create_task(
     """
     task_id = uuid4()
     logger.info(f"Received request to create task: {task_id}")
-    
+
     # 1. Create a task record in status intake
     task = Task(
         id=task_id,
@@ -87,14 +88,14 @@ async def create_task(
         confidence=1.0,
         total_cost_usd=0.0
     )
-    
+
     db.add(task)
     await db.commit()
     await db.refresh(task)
-    
+
     # 2. Trigger the LangGraph execution in the background
     background_tasks.add_task(run_task_workflow, task_id, payload.request_text)
-    
+
     return task
 
 @router.get("/{task_id}", response_model=TaskResponse)
@@ -106,20 +107,20 @@ async def get_task(
     Retrieve status and execution results for a specific task.
     """
     logger.info(f"Fetching task: {task_id}")
-    
+
     # Fetch task and eagerly load subtasks relationship
     query = select(Task).where(Task.id == task_id).options(selectinload(Task.subtasks))
     result = await db.execute(query)
     task = result.scalar_one_or_none()
-    
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found.")
-        
+
     # Reconstruct the Plan dynamically using the actual subtask states from the DB
     if task.plan and task.subtasks:
         plan_dict = dict(task.plan)
         original_subtasks = {st["id"]: st for st in plan_dict.get("subtasks", []) if isinstance(st, dict)}
-        
+
         subtasks_list = []
         for st in task.subtasks:
             orig = original_subtasks.get(st.id, {})
@@ -137,5 +138,5 @@ async def get_task(
             })
         plan_dict["subtasks"] = subtasks_list
         task.plan = plan_dict
-        
+
     return task

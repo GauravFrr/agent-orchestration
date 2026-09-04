@@ -1,10 +1,11 @@
 import json
 import logging
 from typing import Any, Dict
-from app.core.config import settings
-from app.providers import get_default_provider
+
 from app.agents.prompts.specialist_prompts import SPECIALIST_SYSTEM_PROMPT
 from app.agents.supervisor import clean_json_text
+from app.core.config import settings
+from app.providers import get_default_provider
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class WritingSpecialist:
             subtask_input=json.dumps(subtask_input, indent=2),
             feedback_history=feedback_history or "None"
         )
-        
+
         system_instruction += "\n\nYou do not have access to any external tools. Your job is to compile the response purely from the input context.\n"
         system_instruction += "You MUST return a JSON object that strictly conforms to this expected output schema:\n" + json.dumps(expected_schema, indent=2)
 
@@ -48,9 +49,9 @@ class WritingSpecialist:
         ]
 
         model = settings.DEFAULT_MODEL_GEMINI if settings.GEMINI_API_KEY or settings.MOCK_PROVIDERS else settings.DEFAULT_MODEL_CLAUDE
-        
-        from app.observability.tracing import get_tracer
+
         from app.observability.cost import calculate_span_cost
+        from app.observability.tracing import get_tracer
         tracer = get_tracer()
 
         logger.info("Writing specialist generating output...")

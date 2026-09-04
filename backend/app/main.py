@@ -1,7 +1,9 @@
 import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import tasks
+
+from app.api.routes import memory, reviews, tasks, traces
 from db.models import Base, engine
 
 # Setup logging config
@@ -29,11 +31,8 @@ app.add_middleware(
 
 # Mount Routers
 app.include_router(tasks.router)
-from app.api.routes import memory
 app.include_router(memory.router)
-from app.api.routes import reviews
 app.include_router(reviews.router)
-from app.api.routes import traces
 app.include_router(traces.router)
 
 @app.on_event("startup")

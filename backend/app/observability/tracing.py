@@ -1,18 +1,18 @@
-import os
 import asyncio
 import logging
+import os
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider, ReadableSpan, SpanProcessor
-from opentelemetry.sdk.resources import Resource
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import ReadableSpan, SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
 from sqlalchemy import select
-from db.models import AsyncSessionLocal, TraceSpan, Task
+
+from db.models import AsyncSessionLocal, Task, TraceSpan
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +47,11 @@ class PostgresSpanProcessor(SpanProcessor):
             # Extract span properties
             span_context = span.get_span_context()
             span_id = f"{span_context.span_id:016x}"
-            
+
             parent_span_id = None
             if span.parent and span.parent.span_id:
                 parent_span_id = f"{span.parent.span_id:016x}"
-                
+
             attributes = dict(span.attributes or {})
             task_id_str = attributes.get("task_id")
             if not task_id_str and parent_span_id:
@@ -142,10 +142,10 @@ def init_tracer() -> trace.Tracer:
     if not _TRACER_INITIALIZED:
         resource = Resource.create({"service.name": "agent-orchestration-system"})
         provider = TracerProvider(resource=resource)
-        
+
         # 1. Custom Postgres SpanProcessor for relational querying
         provider.add_span_processor(PostgresSpanProcessor())
-        
+
         # 2. OTLP Exporter for OTel Collector (if configured)
         otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
         try:
@@ -157,7 +157,7 @@ def init_tracer() -> trace.Tracer:
         trace.set_tracer_provider(provider)
         _TRACER_INITIALIZED = True
         logger.info("OpenTelemetry TracerProvider initialized with PostgresSpanProcessor & OTLP Exporter.")
-        
+
     return trace.get_tracer("agent-orchestration")
 
 
@@ -188,15 +188,14 @@ async def get_task_trace_tree(task_id: str) -> Dict[str, Any]:
     total_latency_ms = 0
     cost_by_agent: Dict[str, float] = {}
     cost_by_tool: Dict[str, float] = {}
-    
+
     span_dicts = []
     span_map = {}
 
     for s in spans:
         cost = float(s.cost_usd or 0.0)
-        lat = s.latency_ms or 0
         total_cost += cost
-        
+
         actor = s.actor or "unknown"
         if s.span_type == "tool_call":
             cost_by_tool[actor] = cost_by_tool.get(actor, 0.0) + cost

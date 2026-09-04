@@ -1,16 +1,17 @@
 import json
 import logging
-from uuid import UUID
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+from uuid import UUID
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models import get_db_session, Task, Subtask, ReviewRequest, Checkpoint
 from app.graph.build_graph import build_workflow
 from app.providers import get_default_provider
+from db.models import Checkpoint, ReviewRequest, Subtask, Task, get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -90,10 +91,10 @@ async def submit_decision(
 
     # Look up ReviewRequest by review_id OR task_id
     query = select(ReviewRequest).where(
-        (ReviewRequest.id == review_id) | 
+        (ReviewRequest.id == review_id) |
         ((ReviewRequest.task_id == review_id) & (ReviewRequest.status == "pending"))
     ).order_by(ReviewRequest.created_at.desc())
-    
+
     res = await db.execute(query)
     review_req = res.scalars().first()
 
@@ -146,7 +147,7 @@ async def submit_decision(
 
     if subtask_id:
         db_subtask = await db.get(Subtask, (subtask_id, task_uuid))
-        
+
         if decision == "approve":
             logger.info(f"Decision 'approve' for subtask {subtask_id}. Resuming execution.")
             if db_subtask:
@@ -162,7 +163,7 @@ async def submit_decision(
             if db_subtask:
                 db_subtask.input = mod_input
                 db_subtask.status = "running"
-            
+
             # Update plan representation in state
             if "plan" in restored_state and restored_state["plan"] and "subtasks" in restored_state["plan"]:
                 for st in restored_state["plan"]["subtasks"]:
@@ -178,12 +179,12 @@ async def submit_decision(
                 db_subtask.reviewer_feedback = feedback_str
                 db_subtask.reviewer_verdict = "reject"
                 db_subtask.retry_count += 1
-            
+
             # Update state results and retries
             results = dict(restored_state.get("results", {}))
             results.pop(subtask_id, None)
             restored_state["results"] = results
-            
+
             retries = dict(restored_state.get("retries", {}))
             retries[subtask_id] = retries.get(subtask_id, 0) + 1
             restored_state["retries"] = retries
@@ -196,7 +197,7 @@ async def submit_decision(
                 db_subtask.output = human_output
                 db_subtask.reviewer_verdict = "approve"
                 db_subtask.reviewer_feedback = "Human take_over replacement"
-            
+
             # Inject human output directly into state results and plan
             results = dict(restored_state.get("results", {}))
             results[subtask_id] = human_output

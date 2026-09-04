@@ -1,6 +1,8 @@
 import logging
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
+
 from app.core.config import settings
 from app.tools.registry import register_tool
 
@@ -12,20 +14,20 @@ async def db_query(sql: str) -> dict:
     This tool is scoped purely to the 'demo_data' schema using the Analyst user credentials.
     """
     logger.info(f"db_query tool called with query: '{sql}'")
-    
+
     # Use ANALYST_DATABASE_URL to connect, enforcing postgres user permissions boundary
     engine = create_async_engine(settings.ANALYST_DATABASE_URL)
-    
+
     try:
         async with engine.connect() as conn:
             # Enforce that the query searches only in demo_data schema by default
             await conn.execute(text("SET search_path TO demo_data;"))
-            
+
             result = await conn.execute(text(sql))
-            
+
             # Commit the transaction if write operation
             await conn.commit()
-            
+
             # If the query returns rows (like SELECT), extract them
             if result.returns_rows:
                 rows = result.fetchall()
@@ -45,7 +47,7 @@ async def db_query(sql: str) -> dict:
                     "row_count": result.rowcount,
                     "message": "Query executed successfully, no rows returned."
                 }
-                
+
     except Exception as e:
         logger.error(f"Database query error: {str(e)}")
         return {

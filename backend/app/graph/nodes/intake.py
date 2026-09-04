@@ -1,9 +1,9 @@
 import logging
 from uuid import UUID
-from app.graph.state import AgentState
-from db.models import AsyncSessionLocal, Task
 
+from app.graph.state import AgentState
 from app.observability.tracing import get_tracer
+from db.models import AsyncSessionLocal, Task
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ async def intake_node(state: AgentState) -> dict:
             # Check if task already exists
             task_uuid = UUID(task_id)
             task = await session.get(Task, task_uuid)
-            
+
             if not task:
                 # Create a new task record in case it wasn't pre-created
                 task = Task(
@@ -57,7 +57,7 @@ async def intake_node(state: AgentState) -> dict:
             else:
                 task.status = "planning"
                 logger.info(f"Updated existing database task status to planning: {task_id}")
-                
+
             await session.commit()
 
         return {"status": "planning"}

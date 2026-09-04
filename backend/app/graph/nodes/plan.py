@@ -1,10 +1,10 @@
 import logging
 from uuid import UUID
-from app.graph.state import AgentState
-from app.agents.supervisor import SupervisorAgent
-from db.models import AsyncSessionLocal, Task, Subtask
 
+from app.agents.supervisor import SupervisorAgent
+from app.graph.state import AgentState
 from app.observability.tracing import get_tracer
+from db.models import AsyncSessionLocal, Subtask, Task
 
 logger = logging.getLogger(__name__)
 
@@ -47,29 +47,29 @@ async def plan_node(state: AgentState) -> dict:
         if memories_text:
             request_for_plan = f"{request_text}\n\n{memories_text}"
             logger.info(f"Injected retrieved context into request for planning task {task_id}")
-        
+
         span.set_attribute("payload", {"request_text": request_for_plan})
         logger.info(f"Final prompt text sent to supervisor for task {task_id}:\n{request_for_plan}")
 
         supervisor = SupervisorAgent()
         # Call Supervisor planning logic
         plan, in_tokens, out_tokens = await supervisor.plan(request_for_plan, task_id=str(task_id))
-        
-        from app.core.cost import record_llm_cost
+
         from app.core.config import settings
+        from app.core.cost import record_llm_cost
         model = settings.DEFAULT_MODEL_GEMINI if (settings.GEMINI_API_KEY or settings.MOCK_PROVIDERS) else settings.DEFAULT_MODEL_CLAUDE
         await record_llm_cost(task_id, model, in_tokens, out_tokens)
-        
+
         # Save to database
         async with AsyncSessionLocal() as session:
             task_uuid = UUID(task_id)
             task = await session.get(Task, task_uuid)
-            
+
             if task:
                 task.plan = plan.model_dump()
                 task.confidence = plan.confidence
                 task.status = "executing"
-                
+
                 # Create subtask records in database
                 for subtask_schema in plan.subtasks:
                     db_subtask = Subtask(
@@ -81,10 +81,10 @@ async def plan_node(state: AgentState) -> dict:
                         status="pending"
                     )
                     session.add(db_subtask)
-                    
+
                 await session.commit()
                 logger.info(f"Generated plan with {len(plan.subtasks)} subtasks. Saved to DB.")
-                
+
                 # Save initial working state to Redis
                 from app.memory.short_term import save_working_state
                 save_working_state(task_id, plan.model_dump(), {}, {})

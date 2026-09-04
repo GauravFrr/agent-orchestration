@@ -1,11 +1,12 @@
 import asyncio
 import logging
-from typing import Optional, Dict, Any
-from uuid import UUID, uuid4
 from datetime import datetime
+from typing import Any, Dict, Optional
+from uuid import UUID, uuid4
 
-from psycopg_pool import AsyncConnectionPool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg_pool import AsyncConnectionPool
+
 from app.core.config import settings
 from db.models import AsyncSessionLocal, Checkpoint
 

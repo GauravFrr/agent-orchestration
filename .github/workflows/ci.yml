@@ -49,7 +49,7 @@ jobs:
       CHROMA_HOST: localhost
       CHROMA_PORT: 8002
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      MOCK_PROVIDERS: "false"
+      MOCK_PROVIDERS: "true"
       PYTHONPATH: ${{ github.workspace }}/backend
 
     steps:
@@ -111,7 +111,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-test-logs
-          path: backend/.pytest_cache/
+          path: backend/
           retention-days: 7
 
   lint:
@@ -148,7 +148,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 

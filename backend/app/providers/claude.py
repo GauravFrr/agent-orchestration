@@ -1,10 +1,12 @@
-from typing import Any
 import asyncio
 import json
+from typing import Any
+
 from anthropic import APIError, APIStatusError, AsyncAnthropic
 
-from app.providers.base import BaseProvider, NonRetryableProviderError, RetryableProviderError
 from app.core.config import settings
+from app.providers.base import BaseProvider, NonRetryableProviderError, RetryableProviderError
+
 
 class ClaudeProvider(BaseProvider):
     """
@@ -59,7 +61,7 @@ class ClaudeProvider(BaseProvider):
                     return mock_json, 15, 10
                 elif hasattr(response_schema, "__name__") and response_schema.__name__ == "ReviewResult":
                     return '{"verdict": "approve", "feedback": ""}', 10, 5
-            
+
             # Check if this is a specialist agent call
             is_specialist = any("Specialist" in msg.get("content", "") or "final_answer" in msg.get("content", "") for msg in messages)
             if is_specialist:
@@ -71,7 +73,7 @@ class ClaudeProvider(BaseProvider):
             raise NonRetryableProviderError("Claude client is not initialized.", provider="claude")
 
         system_parts = [msg["content"] for msg in messages if msg.get("role") == "system"]
-        
+
         # If response_schema is specified, instruct Claude to return valid JSON matching it
         if response_schema:
             schema_desc = ""

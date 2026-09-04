@@ -1,8 +1,15 @@
-from app.providers.base import BaseProvider, GatewayProviderError, NonRetryableProviderError, RetryableProviderError, ProviderRateLimitError
+from app.core.config import settings
+from app.providers.base import (
+    BaseProvider,
+    GatewayProviderError,
+    NonRetryableProviderError,
+    ProviderRateLimitError,
+    RetryableProviderError,
+)
 from app.providers.claude import ClaudeProvider
 from app.providers.gemini import GeminiProvider
 from app.providers.groq import GroqProvider
-from app.core.config import settings
+
 
 def get_provider(name: str) -> BaseProvider:
     if name == "gemini":
@@ -26,7 +33,7 @@ def get_default_provider() -> BaseProvider:
         return ClaudeProvider()
     if settings.GROQ_API_KEY:
         return GroqProvider()
-    
+
     # Fallback/Default
     return GeminiProvider()
 

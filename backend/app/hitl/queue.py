@@ -1,8 +1,9 @@
 import json
 import logging
-from uuid import UUID, uuid4
 from datetime import datetime
 from typing import Any, Dict, Optional
+from uuid import UUID, uuid4
+
 import redis
 from sqlalchemy import select
 

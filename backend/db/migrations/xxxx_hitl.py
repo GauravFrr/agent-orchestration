@@ -1,8 +1,8 @@
 """
 Create review_requests, checkpoints, and hitl_configs tables, and add action_tag column to subtasks.
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.

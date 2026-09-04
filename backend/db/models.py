@@ -1,9 +1,23 @@
 import os
 from datetime import datetime
 from uuid import uuid4
-from sqlalchemy import Column, String, Float, DateTime, Enum, JSON, ForeignKey, Integer, Boolean, Numeric, Text, ForeignKeyConstraint
-from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base, relationship
 
 from app.core.config import settings
@@ -82,7 +96,7 @@ class ToolInvocation(Base):
             ondelete="CASCADE"
         ),
     )
-    
+
     subsubtask = relationship(
         "Subtask",
         primaryjoin="and_(ToolInvocation.subtask_id==Subtask.id, ToolInvocation.task_id==Subtask.task_id)",

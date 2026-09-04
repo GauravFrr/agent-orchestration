@@ -1,13 +1,14 @@
 import logging
-from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException, Depends
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models import get_db_session, Task, Replay
 from app.observability.tracing import get_task_trace_tree
 from app.replay.replay_engine import execute_replay
+from db.models import Replay, Task, get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ async def get_task_replays(task_id: str, db: AsyncSession = Depends(get_db_sessi
         query = select(Replay).where(
             (Replay.original_task_id == task_uuid) | (Replay.resulting_task_id == task_uuid)
         ).order_by(Replay.created_at.desc())
-        
+
         res = await db.execute(query)
         replays = list(res.scalars().all())
 

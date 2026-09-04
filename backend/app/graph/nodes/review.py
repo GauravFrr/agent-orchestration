@@ -1,11 +1,11 @@
 import logging
 from uuid import UUID
-from app.graph.state import AgentState
-from app.core.schemas import SubtaskStatus
-from app.agents.reviewer import ReviewerAgent
-from db.models import AsyncSessionLocal, Subtask
 
+from app.agents.reviewer import ReviewerAgent
+from app.core.schemas import SubtaskStatus
+from app.graph.state import AgentState
 from app.observability.tracing import get_tracer
+from db.models import AsyncSessionLocal, Subtask
 
 logger = logging.getLogger(__name__)
 
@@ -71,12 +71,12 @@ async def review_node(state: AgentState) -> dict:
                 task_id=task_id,
                 subtask_id=subtask_id
             )
-            
-            from app.core.cost import record_llm_cost
+
             from app.core.config import settings
+            from app.core.cost import record_llm_cost
             model = settings.DEFAULT_MODEL_GEMINI if (settings.GEMINI_API_KEY or settings.MOCK_PROVIDERS) else settings.DEFAULT_MODEL_CLAUDE
             await record_llm_cost(task_id, model, in_t, out_t)
-            
+
             logger.info(f"Reviewer verdict for subtask {subtask_id}: {review_res.verdict}. Feedback: {review_res.feedback}")
             reviewer_verdicts[subtask_id] = review_res.verdict
 
@@ -87,7 +87,7 @@ async def review_node(state: AgentState) -> dict:
             if db_subtask:
                 db_subtask.reviewer_verdict = review_res.verdict
                 db_subtask.reviewer_feedback = review_res.feedback
-                
+
                 # In Phase 1, we treat review as either approved or rejected.
                 if review_res.verdict == "approve":
                     db_subtask.status = "approved"
@@ -97,12 +97,14 @@ async def review_node(state: AgentState) -> dict:
                     db_subtask.retry_count += 1
                     subtask.status = SubtaskStatus.REJECTED
                     # Check if repeated failure threshold triggered escalation
-                    from app.hitl.triggers import evaluate_triggers
+                    from datetime import datetime
+                    from uuid import uuid4
+
                     from app.hitl.approval_levels import get_approval_level
                     from app.hitl.queue import create_review_request
-                    from db.models import Checkpoint, Task as TaskModel
-                    from uuid import uuid4
-                    from datetime import datetime
+                    from app.hitl.triggers import evaluate_triggers
+                    from db.models import Checkpoint
+                    from db.models import Task as TaskModel
 
                     triggers = await evaluate_triggers(
                         task_id=task_id,
@@ -115,13 +117,13 @@ async def review_node(state: AgentState) -> dict:
                         trigger = triggers[0]
                         logger.info(f"Escalation triggered in review_node for subtask '{subtask_id}': {trigger['reason']}")
                         approval_level = await get_approval_level(trigger["reason"])
-                        
+
                         db_task = await session.get(TaskModel, task_uuid)
                         if db_task:
                             db_task.status = "escalated"
-                        
+
                         await session.commit()
-                        
+
                         context_snapshot = {
                             "request_text": state.get("request_text"),
                             "plan": plan.model_dump() if plan else None,

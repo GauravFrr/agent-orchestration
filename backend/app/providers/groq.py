@@ -1,10 +1,12 @@
-from typing import Any
 import asyncio
 import json
+from typing import Any
+
 from groq import APIStatusError, AsyncGroq, GroqError
 
-from app.providers.base import BaseProvider, NonRetryableProviderError, ProviderRateLimitError, RetryableProviderError
 from app.core.config import settings
+from app.providers.base import BaseProvider, NonRetryableProviderError, ProviderRateLimitError, RetryableProviderError
+
 
 class GroqProvider(BaseProvider):
     """
@@ -59,7 +61,7 @@ class GroqProvider(BaseProvider):
                     return mock_json, 15, 10
                 elif hasattr(response_schema, "__name__") and response_schema.__name__ == "ReviewResult":
                     return '{"verdict": "approve", "feedback": ""}', 10, 5
-            
+
             # Check if this is a specialist call
             is_specialist = any("Specialist" in msg.get("content", "") or "final_answer" in msg.get("content", "") for msg in messages)
             if is_specialist:

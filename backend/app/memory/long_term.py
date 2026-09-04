@@ -1,8 +1,10 @@
 import asyncio
 import logging
 from typing import Any, Dict, List
+
 import chromadb
 from google import genai
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -36,7 +38,7 @@ async def get_embedding(text: str) -> List[float]:
             return response.embedding.values
     except Exception as e:
         logger.error(f"Error generating embedding via Gemini API: {str(e)}")
-    
+
     # Fallback to pseudo-random deterministic embedding
     import random
     h = hash(text)

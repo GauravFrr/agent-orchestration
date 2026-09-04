@@ -1,7 +1,9 @@
 import json
 import logging
 from typing import Any, Dict
+
 import redis
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)

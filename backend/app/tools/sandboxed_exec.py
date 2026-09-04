@@ -1,8 +1,9 @@
-import os
-import sys
-import subprocess
-import tempfile
 import logging
+import os
+import subprocess
+import sys
+import tempfile
+
 from app.tools.registry import register_tool
 
 logger = logging.getLogger(__name__)
@@ -13,17 +14,17 @@ def sandboxed_code_exec(code: str) -> dict:
     Enforces a strict timeout, no network access (stub on Windows), and wipes the execution directory afterward.
     """
     logger.info("sandboxed_code_exec called")
-    
+
     # 1. Create a secure temporary directory that is automatically wiped afterward
     with tempfile.TemporaryDirectory(prefix="agent_sandbox_") as tmpdir:
         script_path = os.path.join(tmpdir, "sandbox_run.py")
-        
+
         # Write the user code to the file
         with open(script_path, "w", encoding="utf-8") as f:
             f.write(code)
-            
+
         logger.info(f"Writing sandbox code to temporary file: {script_path}")
-        
+
         try:
             # 2. Run the code in a separate python subprocess
             # Enforce 10 second timeout limit
@@ -34,16 +35,16 @@ def sandboxed_code_exec(code: str) -> dict:
                 text=True,
                 timeout=10.0,
                 # We can block environment variables inheritance to prevent secret leaks
-                env={"PATH": os.environ.get("PATH", "")} 
+                env={"PATH": os.environ.get("PATH", "")}
             )
-            
+
             return {
                 "success": result.returncode == 0,
                 "exit_code": result.returncode,
                 "stdout": result.stdout,
                 "stderr": result.stderr
             }
-            
+
         except subprocess.TimeoutExpired as te:
             logger.error("Sandbox code execution timed out.")
             return {

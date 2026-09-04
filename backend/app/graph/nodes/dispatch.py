@@ -1,15 +1,15 @@
-import logging
 import asyncio
+import logging
 from uuid import UUID
-from app.graph.state import AgentState
-from app.core.schemas import SpecialistType, SubtaskStatus
-from app.agents.specialists.research import ResearchSpecialist
-from app.agents.specialists.data_analysis import DataAnalysisSpecialist
-from app.agents.specialists.writing import WritingSpecialist
-from app.agents.specialists.code_exec import CodeExecSpecialist
-from db.models import AsyncSessionLocal, Subtask
 
+from app.agents.specialists.code_exec import CodeExecSpecialist
+from app.agents.specialists.data_analysis import DataAnalysisSpecialist
+from app.agents.specialists.research import ResearchSpecialist
+from app.agents.specialists.writing import WritingSpecialist
+from app.core.schemas import SpecialistType, SubtaskStatus
+from app.graph.state import AgentState
 from app.observability.tracing import get_tracer
+from db.models import AsyncSessionLocal, Subtask
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,6 @@ async def dispatch_node(state: AgentState) -> dict:
         plan = state.get("plan")
         results = dict(state.get("results", {}))
         errors = dict(state.get("errors", {}))
-        retries = dict(state.get("retries", {}))
 
         if not plan or not plan.subtasks:
             logger.warning(f"No plan found for task {task_id} in dispatch node.")
@@ -82,14 +81,14 @@ async def dispatch_node(state: AgentState) -> dict:
         # If it's already done, skip
         if subtask.id in results:
             continue
-            
+
         # Check dependencies
         all_deps_met = True
         for dep_id in subtask.depends_on:
             if dep_id not in results:
                 all_deps_met = False
                 break
-                
+
         if all_deps_met:
             ready_subtasks.append(subtask)
 
@@ -98,12 +97,14 @@ async def dispatch_node(state: AgentState) -> dict:
         return {"current_subtask_ids": []}
 
     # 1.5 Check HITL Escalation Triggers before execution
-    from app.hitl.triggers import evaluate_triggers
+    from datetime import datetime
+    from uuid import uuid4
+
     from app.hitl.approval_levels import get_approval_level
     from app.hitl.queue import create_review_request
-    from db.models import Checkpoint, Task as TaskModel
-    from uuid import uuid4
-    from datetime import datetime
+    from app.hitl.triggers import evaluate_triggers
+    from db.models import Checkpoint
+    from db.models import Task as TaskModel
 
     for subtask in ready_subtasks:
         # Skip re-triggering escalation if the subtask has already been approved or set to running post-human decision
@@ -118,16 +119,16 @@ async def dispatch_node(state: AgentState) -> dict:
         if triggers:
             trigger = triggers[0]
             logger.info(f"Escalation triggered for subtask '{subtask.id}': {trigger['reason']}")
-            
+
             approval_level = await get_approval_level(trigger["reason"], action_tag=subtask.action_tag)
-            
+
             async with AsyncSessionLocal() as session:
                 task_uuid = UUID(task_id)
                 # Update Task status to escalated
                 db_task = await session.get(TaskModel, task_uuid)
                 if db_task:
                     db_task.status = "escalated"
-                
+
                 await session.commit()
 
             req_text = state.get("request_text", "")
@@ -186,15 +187,15 @@ async def dispatch_node(state: AgentState) -> dict:
     current_subtask_ids = []
     async with AsyncSessionLocal() as session:
         task_uuid = UUID(task_id)
-        
+
         for subtask, (output, in_t, out_t) in zip(ready_subtasks, execution_results):
             current_subtask_ids.append(subtask.id)
-            
-            from app.core.cost import record_llm_cost
+
             from app.core.config import settings
+            from app.core.cost import record_llm_cost
             model = settings.DEFAULT_MODEL_GEMINI if (settings.GEMINI_API_KEY or settings.MOCK_PROVIDERS) else settings.DEFAULT_MODEL_CLAUDE
             await record_llm_cost(task_id, model, in_t, out_t)
-            
+
             # Check for error or output
             if "error" in output and len(output) == 1:
                 errors[subtask.id] = output["error"]
@@ -208,7 +209,7 @@ async def dispatch_node(state: AgentState) -> dict:
             if db_subtask:
                 db_subtask.status = "review_pending"
                 db_subtask.output = output
-            
+
             # Sync plan status in state object representation
             subtask.status = SubtaskStatus.REVIEW_PENDING
             subtask.output = output

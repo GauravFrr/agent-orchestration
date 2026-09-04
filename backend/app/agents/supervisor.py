@@ -1,10 +1,11 @@
 import json
 import logging
 from typing import Any, Dict
-from app.core.schemas import Plan
-from app.core.config import settings
-from app.providers import get_default_provider
+
 from app.agents.prompts.supervisor_prompts import PLANNING_SYSTEM_PROMPT, SYNTHESIS_SYSTEM_PROMPT
+from app.core.config import settings
+from app.core.schemas import Plan
+from app.providers import get_default_provider
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +43,9 @@ class SupervisorAgent:
 
         # Use Gemini default model for planning since it natively supports Pydantic response_schema
         model = settings.DEFAULT_MODEL_GEMINI if settings.GEMINI_API_KEY or settings.MOCK_PROVIDERS else settings.DEFAULT_MODEL_CLAUDE
-        
-        from app.observability.tracing import get_tracer
+
         from app.observability.cost import calculate_span_cost
+        from app.observability.tracing import get_tracer
         tracer = get_tracer()
 
         logger.info(f"Supervisor calling LLM ({model}) for planning...")
@@ -104,9 +105,9 @@ class SupervisorAgent:
         ]
 
         model = settings.DEFAULT_MODEL_GEMINI if settings.GEMINI_API_KEY or settings.MOCK_PROVIDERS else settings.DEFAULT_MODEL_CLAUDE
-        
-        from app.observability.tracing import get_tracer
+
         from app.observability.cost import calculate_span_cost
+        from app.observability.tracing import get_tracer
         tracer = get_tracer()
 
         logger.info(f"Supervisor calling LLM ({model}) for synthesis...")

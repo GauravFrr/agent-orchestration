@@ -1,5 +1,7 @@
-import httpx
 import logging
+
+import httpx
+
 from app.tools.registry import register_tool
 
 logger = logging.getLogger(__name__)
@@ -24,7 +26,7 @@ async def web_search(query: str) -> dict:
             response.raise_for_status()
             data = response.json()
             search_results = data.get("query", {}).get("search", [])
-            
+
             formatted_results = []
             for result in search_results[:3]:  # Top 3 results
                 title = result.get("title")
@@ -34,11 +36,11 @@ async def web_search(query: str) -> dict:
                     "snippet": snippet,
                     "source": f"https://en.wikipedia.org/wiki/{title.replace(' ', '_')}"
                 })
-            
+
             if not formatted_results:
                 return {"results": [], "info": "No results found on Wikipedia."}
             return {"results": formatted_results}
-            
+
     except Exception as e:
         logger.error(f"Search API error: {str(e)}. Falling back to mock search.")
         # Fallback mock search for reliability

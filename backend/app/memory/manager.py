@@ -1,16 +1,17 @@
-import logging
 import json
-from uuid import UUID, uuid4
+import logging
 from datetime import datetime
 from typing import Any, Dict, List
+from uuid import UUID, uuid4
+
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 
-from app.core.config import settings
-from app.providers import get_default_provider
 from app.agents.supervisor import clean_json_text
-from app.memory.long_term import get_embedding, add_to_collection, query_collection
-from db.models import AsyncSessionLocal, Memory, Task, Subtask
+from app.core.config import settings
+from app.memory.long_term import add_to_collection, get_embedding, query_collection
+from app.providers import get_default_provider
+from db.models import AsyncSessionLocal, Memory, Subtask, Task
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class MemoryManager:
                 return "\n=== RETRIEVED CONTEXT FROM PAST EXECUTIONS ===\n" + "\n".join(context_parts) + "\n=============================================\n"
         except Exception as e:
             logger.error(f"Error in retrieve_context: {str(e)}")
-        
+
         return ""
 
     async def _update_retrieval_stats(self, doc_ids: List[str]):
@@ -111,7 +112,7 @@ class MemoryManager:
         """
         try:
             logger.info(f"Extracting memories for completed task {task_id} with status {status}...")
-            
+
             # Fetch subtask details to get outputs for extraction
             subtasks_data = []
             async with AsyncSessionLocal() as session:
@@ -168,7 +169,7 @@ class MemoryManager:
                         created_at=datetime.utcnow()
                     )
                     session.add(fact_mem)
-                    
+
                     fact_emb = await get_embedding(fact)
                     await add_to_collection(
                         "facts",
@@ -190,7 +191,7 @@ class MemoryManager:
                         created_at=datetime.utcnow()
                     )
                     session.add(pref_mem)
-                    
+
                     pref_emb = await get_embedding(pref)
                     await add_to_collection(
                         "preferences",

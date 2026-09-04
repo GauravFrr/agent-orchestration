@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" font-family="monospace, 'Courier New'" font-size="13">
+  <!-- Background -->
+  <rect width="900" height="700" fill="#0f1117"/>
+
+  <!-- Title -->
+  <text x="450" y="32" text-anchor="middle" fill="#e2e8f0" font-size="16" font-weight="bold">Agent Orchestration System — Architecture</text>
+
+  <!-- Client -->
+  <rect x="320" y="50" width="260" height="50" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="450" y="70" text-anchor="middle" fill="#93c5fd" font-weight="bold">Client / Demo</text>
+  <text x="450" y="88" text-anchor="middle" fill="#64748b" font-size="11">CLI · curl · React UI</text>
+
+  <!-- Arrow Client → API -->
+  <line x1="450" y1="100" x2="450" y2="130" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="460" y="120" fill="#64748b" font-size="10">REST / WebSocket</text>
+
+  <!-- Orchestration API -->
+  <rect x="290" y="130" width="320" height="50" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="450" y="152" text-anchor="middle" fill="#93c5fd" font-weight="bold">Orchestration API</text>
+  <text x="450" y="169" text-anchor="middle" fill="#64748b" font-size="11">FastAPI · Python 3.12</text>
+
+  <!-- Arrow API → LangGraph -->
+  <line x1="450" y1="180" x2="450" y2="210" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- LangGraph Runtime -->
+  <rect x="250" y="210" width="400" height="70" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="450" y="232" text-anchor="middle" fill="#a5b4fc" font-weight="bold">LangGraph Runtime</text>
+  <text x="450" y="250" text-anchor="middle" fill="#64748b" font-size="11">intake → plan → dispatch → review → synthesize</text>
+  <text x="450" y="268" text-anchor="middle" fill="#64748b" font-size="11">AsyncPostgresSaver checkpointing</text>
+
+  <!-- Arrows LangGraph → Specialist, Reviewer, Memory -->
+  <line x1="350" y1="280" x2="200" y2="315" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="450" y1="280" x2="450" y2="315" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="550" y1="280" x2="700" y2="315" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Specialist Agents -->
+  <rect x="60" y="315" width="280" height="80" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="200" y="337" text-anchor="middle" fill="#86efac" font-weight="bold">Specialist Agents</text>
+  <text x="200" y="355" text-anchor="middle" fill="#64748b" font-size="11">research · data_analysis</text>
+  <text x="200" y="371" text-anchor="middle" fill="#64748b" font-size="11">writing · code_exec</text>
+  <text x="200" y="387" text-anchor="middle" fill="#64748b" font-size="11">Gemini / Claude / Groq</text>
+
+  <!-- Reviewer Agent -->
+  <rect x="360" y="315" width="180" height="80" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="450" y="337" text-anchor="middle" fill="#fcd34d" font-weight="bold">Reviewer Agent</text>
+  <text x="450" y="355" text-anchor="middle" fill="#64748b" font-size="11">approve / reject</text>
+  <text x="450" y="371" text-anchor="middle" fill="#64748b" font-size="11">/ escalate</text>
+
+  <!-- Memory Manager -->
+  <rect x="570" y="315" width="270" height="80" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="705" y="337" text-anchor="middle" fill="#c4b5fd" font-weight="bold">Memory Manager</text>
+  <text x="705" y="355" text-anchor="middle" fill="#64748b" font-size="11">retrieval · importance scoring</text>
+  <text x="705" y="371" text-anchor="middle" fill="#64748b" font-size="11">decay (Celery Beat)</text>
+
+  <!-- Arrow Specialist → Tool Registry -->
+  <line x1="200" y1="395" x2="200" y2="430" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Arrow Memory → Redis + ChromaDB -->
+  <line x1="660" y1="395" x2="620" y2="430" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="750" y1="395" x2="790" y2="430" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Tool Registry -->
+  <rect x="80" y="430" width="240" height="60" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="200" y="453" text-anchor="middle" fill="#86efac" font-weight="bold">Tool Registry</text>
+  <text x="200" y="471" text-anchor="middle" fill="#64748b" font-size="11">custom tools + MCP servers</text>
+
+  <!-- Redis -->
+  <rect x="540" y="430" width="160" height="60" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="620" y="453" text-anchor="middle" fill="#fca5a5" font-weight="bold">Redis</text>
+  <text x="620" y="471" text-anchor="middle" fill="#64748b" font-size="11">short-term memory</text>
+
+  <!-- ChromaDB -->
+  <rect x="720" y="430" width="160" height="60" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="800" y="453" text-anchor="middle" fill="#c4b5fd" font-weight="bold">ChromaDB</text>
+  <text x="800" y="471" text-anchor="middle" fill="#64748b" font-size="11">long-term memory</text>
+
+  <!-- Arrow Reviewer → HITL Queue -->
+  <line x1="450" y1="395" x2="450" y2="430" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- HITL Queue -->
+  <rect x="340" y="430" width="200" height="60" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="440" y="453" text-anchor="middle" fill="#fcd34d" font-weight="bold">Human Review Queue</text>
+  <text x="440" y="471" text-anchor="middle" fill="#64748b" font-size="11">Postgres + Redis pub/sub</text>
+
+  <!-- Arrow HITL → React Review UI -->
+  <line x1="540" y1="460" x2="580" y2="460" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrowOrange)"/>
+  <!-- Label positioned separately because of overlap risk -->
+
+  <!-- OTel Trace Store -->
+  <rect x="80" y="545" width="740" height="60" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+  <text x="450" y="567" text-anchor="middle" fill="#67e8f9" font-weight="bold">OTel Trace Store</text>
+  <text x="450" y="585" text-anchor="middle" fill="#64748b" font-size="11">Postgres (trace_spans, checkpoints, replays) · OTel Collector · Trace Explorer UI</text>
+
+  <!-- Arrow from various to trace store -->
+  <line x1="200" y1="490" x2="200" y2="545" stroke="#06b6d4" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrowCyan)"/>
+  <line x1="450" y1="490" x2="450" y2="545" stroke="#06b6d4" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrowCyan)"/>
+  <line x1="700" y1="490" x2="700" y2="545" stroke="#06b6d4" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrowCyan)"/>
+
+  <!-- Legend labels -->
+  <text x="80" y="640" fill="#64748b" font-size="11">──── data flow</text>
+  <text x="220" y="640" fill="#06b6d4" font-size="11">- - - telemetry / OTel</text>
+  <text x="390" y="640" fill="#f59e0b" font-size="11">- - - HITL notifications</text>
+
+  <!-- Service labels -->
+  <text x="80" y="670" fill="#475569" font-size="10">PostgreSQL 15 · Redis 7 · ChromaDB · Celery · Docker Compose · OpenTelemetry</text>
+
+  <!-- Arrowhead defs -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#475569"/>
+    </marker>
+    <marker id="arrowCyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#06b6d4"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b"/>
+    </marker>
+  </defs>
+</svg>

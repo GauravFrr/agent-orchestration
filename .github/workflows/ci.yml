@@ -1,0 +1,161 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: orchestrator
+          POSTGRES_PASSWORD: orchestrator_pass
+          POSTGRES_DB: orchestration
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U orchestrator -d orchestration"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      chromadb:
+        image: chromadb/chroma:latest
+        ports:
+          - 8002:8000
+
+    env:
+      DATABASE_URL: postgresql+psycopg://orchestrator:orchestrator_pass@localhost:5432/orchestration
+      ANALYST_DATABASE_URL: postgresql+psycopg://analyst:analyst_pass@localhost:5432/orchestration
+      REDIS_URL: redis://localhost:6379/0
+      CHROMA_HOST: localhost
+      CHROMA_PORT: 8002
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      MOCK_PROVIDERS: "false"
+      PYTHONPATH: ${{ github.workspace }}/backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[test]"
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for Postgres..."
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -U orchestrator -d orchestration && break
+            sleep 2
+          done
+          echo "Waiting for Redis..."
+          for i in $(seq 1 20); do
+            redis-cli -h localhost ping && break
+            sleep 2
+          done
+
+      - name: Initialize database schema
+        working-directory: backend
+        env:
+          PYTHONPATH: .
+        run: python db/init_db.py
+
+      - name: Set up LangGraph checkpointer tables
+        working-directory: backend
+        env:
+          PYTHONPATH: .
+        run: python app/setup_checkpointer.py
+
+      - name: Run E2E test suite
+        working-directory: backend
+        env:
+          PYTHONPATH: .
+        run: |
+          pytest tests/e2e \
+            -v \
+            --asyncio-mode=auto \
+            --tb=short \
+            --timeout=600 \
+            -p no:warnings \
+            2>&1
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-logs
+          path: backend/.pytest_cache/
+          retention-days: 7
+
+  lint:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install linting tools
+        run: pip install ruff
+
+      - name: Run ruff lint check
+        working-directory: backend
+        run: ruff check app/ db/ --ignore E501,F401
+
+  frontend-build:
+    name: Frontend Build Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build

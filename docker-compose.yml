@@ -1,0 +1,140 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: agent_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: orchestration
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orchestration"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: agent_redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: agent_chroma
+    restart: always
+    ports:
+      - "8002:8000"
+    volumes:
+      - chromadata:/chroma/data
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: agent_api
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      chromadb:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel_collector:4317
+      - DATABASE_URL=postgresql+psycopg://orchestrator:orchestrator_pass@db:5432/orchestration
+      - ANALYST_DATABASE_URL=postgresql+psycopg://analyst:analyst_pass@db:5432/orchestration
+    volumes:
+      - ./backend/app:/workspace/app
+      - ./backend/db:/workspace/db
+      - ./backend/tests:/workspace/tests
+      - ./demo:/workspace/demo
+    command: >
+      sh -c "python db/init_db.py && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  otel_collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: agent_otel_collector
+    restart: always
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./docker/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: agent_celery_worker
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      chromadb:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - DATABASE_URL=postgresql+psycopg://orchestrator:orchestrator_pass@db:5432/orchestration
+      - ANALYST_DATABASE_URL=postgresql+psycopg://analyst:analyst_pass@db:5432/orchestration
+    volumes:
+      - ./backend/app:/workspace/app
+      - ./backend/db:/workspace/db
+    command: celery -A app.memory.decay.celery_app worker --loglevel=info
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: agent_celery_beat
+    restart: always
+    depends_on:
+      redis:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./backend/app:/workspace/app
+      - ./backend/db:/workspace/db
+    command: celery -A app.memory.decay.celery_app beat --loglevel=info
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: agent_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  chromadata:

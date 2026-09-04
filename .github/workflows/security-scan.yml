@@ -1,0 +1,68 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run nightly at 02:00 UTC
+    - cron: "0 2 * * *"
+
+jobs:
+  gitleaks:
+    name: Gitleaks Secret Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code (full history)
+        uses: actions/checkout@v4
+        with:
+          # Scan the full git history, not just the latest commit
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Fail the build if any secrets are detected
+          GITLEAKS_ENABLE_COMMENTS: true
+        with:
+          args: detect --source . --log-opts "--all" --redact --verbose
+
+      - name: Upload Gitleaks report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+          retention-days: 14
+
+  env-file-check:
+    name: Verify .env not committed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check .env never appears in git history
+        run: |
+          if git log --all --full-history -- ".env" | grep -q "commit"; then
+            echo "ERROR: .env file appears in git history. Remove it with git-filter-repo."
+            exit 1
+          fi
+          echo "PASS: .env is not present in git history."
+
+      - name: Check .env.example contains no real secrets
+        run: |
+          # Ensure .env.example only contains placeholder values, not real keys
+          if grep -E "(sk-|AKIA|gsk_|AIza)[A-Za-z0-9_-]{20,}" .env.example 2>/dev/null; then
+            echo "ERROR: .env.example appears to contain real API key patterns."
+            exit 1
+          fi
+          echo "PASS: .env.example contains no real key patterns."

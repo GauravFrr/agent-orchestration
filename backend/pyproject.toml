@@ -1,0 +1,51 @@
+[project]
+name = "agent-orchestration-backend"
+version = "0.1.0"
+description = "Agent Orchestration System Backend"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.22.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "langgraph>=0.1.0",
+    "langgraph-checkpoint-postgres>=3.1.0",
+    "langchain-core>=0.2.0",
+    "google-genai>=0.1.0",
+    "anthropic>=0.18.0",
+    "groq>=0.9.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.11.0",
+    "psycopg>=3.1.0",
+    "psycopg2-binary>=2.9.0",
+    "redis>=5.0.0",
+    "celery>=5.3.0",
+    "chromadb>=0.4.0",
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-exporter-otlp>=1.20.0",
+    "httpx>=0.24.0",
+    "mcp>=0.1.0",
+    "tenacity>=8.2.0",
+    "jinja2>=3.1.2"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.1.0"
+]
+
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app", "db"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+select = ["E", "F", "W", "I"]

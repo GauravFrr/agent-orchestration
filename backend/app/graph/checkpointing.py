@@ -12,20 +12,24 @@ from db.models import AsyncSessionLocal, Checkpoint
 
 logger = logging.getLogger(__name__)
 
+_checkpointer_instance: Optional[AsyncPostgresSaver] = None
+
 def get_checkpointer() -> AsyncPostgresSaver:
     """
-    Returns an initialized LangGraph AsyncPostgresSaver checkpointer instance.
+    Returns a singleton LangGraph AsyncPostgresSaver checkpointer instance.
     Raises RuntimeError if initialization fails.
     """
-    try:
-        conn_str = settings.DATABASE_URL.replace("postgresql+psycopg://", "postgresql://")
-        pool = AsyncConnectionPool(conninfo=conn_str, max_size=20, kwargs={"autocommit": True})
-        cp = AsyncPostgresSaver(pool)
-        return cp
-    except Exception as e:
-        error_msg = f"Failed to initialize LangGraph AsyncPostgresSaver checkpointer: {str(e)}"
-        logger.error(error_msg)
-        raise RuntimeError(error_msg) from e
+    global _checkpointer_instance
+    if _checkpointer_instance is None:
+        try:
+            conn_str = settings.DATABASE_URL.replace("postgresql+psycopg://", "postgresql://")
+            pool = AsyncConnectionPool(conninfo=conn_str, max_size=10, kwargs={"autocommit": True})
+            _checkpointer_instance = AsyncPostgresSaver(pool)
+        except Exception as e:
+            error_msg = f"Failed to initialize LangGraph AsyncPostgresSaver checkpointer: {str(e)}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
+    return _checkpointer_instance
 
 async def save_checkpoint(task_id: str, node_name: str, state_snapshot: Dict[str, Any]) -> str:
     """

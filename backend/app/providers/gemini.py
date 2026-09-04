@@ -119,8 +119,10 @@ class GeminiProvider(BaseProvider):
 
             if "non_existent_table" in last_msg:
                 return '{"thought": "Querying table", "tool_call": {"name": "db_query", "arguments": {"query": "SELECT * FROM non_existent_table_999;"}}}', 10, 5
+            elif "sales_data" in last_msg or "customer_sentiment_score" in last_msg:
+                return '{"thought": "Querying sales data", "tool_call": {"name": "db_query", "arguments": {"query": "SELECT * FROM demo_data.sales_data;"}}}', 10, 5
 
-            return '{"thought": "Querying sales data", "tool_call": {"name": "db_query", "arguments": {"query": "SELECT * FROM demo_data.sales_data;"}}}', 10, 5
+            return '{"thought": "I have completed the subtask.", "final_answer": {"overview": "Trends include LangGraph, supervisor patterns, and sandboxed code execution."}}', 10, 5
 
         if not self.client:
             raise NonRetryableProviderError("Gemini client is not initialized (no API key).", provider="gemini")

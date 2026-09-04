@@ -95,6 +95,7 @@ def build_workflow():
         should_continue,
         {
             "dispatch": "dispatch",
+            "review": "review",
             "synthesize": "synthesize",
             END: END
         }

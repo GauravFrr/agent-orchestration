@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -10,9 +11,8 @@ async def initialize_database():
     """
     Initialize the database schemas, roles, tables, and mock data.
     """
-    import os
     db_host = os.environ.get("DB_HOST", "localhost")
-    admin_url = f"postgresql+psycopg://postgres:postgres@{db_host}:5432/orchestration"
+    admin_url = os.environ.get("DATABASE_URL", f"postgresql+psycopg://postgres:postgres@{db_host}:5432/orchestration")
     engine = create_async_engine(admin_url, echo=True)
 
     logger.info("Starting database initialization...")

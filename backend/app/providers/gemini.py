@@ -43,38 +43,84 @@ class GeminiProvider(BaseProvider):
         model = settings.DEFAULT_MODEL_GEMINI
         if settings.MOCK_PROVIDERS:
             await asyncio.sleep(0.010)
-            if response_schema:
-                # If a structured schema is requested (like Plan), return a mock JSON
-                if hasattr(response_schema, "__name__") and response_schema.__name__ == "Plan":
-                    mock_json = """{
-                      "subtasks": [
+            last_msg = messages[-1].get("content", "").lower() if messages and isinstance(messages[-1].get("content"), str) else ""
+
+            is_supervisor = (response_schema and getattr(response_schema, "__name__", "") == "Plan") or ("supervisor agent" in last_msg or "decompose" in last_msg)
+            is_reviewer = (response_schema and getattr(response_schema, "__name__", "") == "ReviewResult") or ("reviewer agent" in last_msg or "evaluate" in last_msg)
+
+            if is_supervisor:
+                import json
+                if "delete" in last_msg:
+                    subtasks = [
                         {
-                          "id": "subtask_1",
-                          "specialist": "research",
-                          "input": {"query": "agent orchestration trends"},
-                          "depends_on": [],
-                          "expected_output_schema": {}
+                            "id": "subtask_1",
+                            "specialist": "data_analysis",
+                            "input": {"query": "Delete all temp records from demo_data.sales_data."},
+                            "action_tag": "deletion",
+                            "depends_on": [],
+                            "expected_output_schema": {}
+                        }
+                    ]
+                elif "non_existent_table" in last_msg:
+                    subtasks = [
+                        {
+                            "id": "subtask_1",
+                            "specialist": "data_analysis",
+                            "input": {"query": "SELECT * FROM non_existent_table_999;"},
+                            "depends_on": [],
+                            "expected_output_schema": {}
+                        }
+                    ]
+                elif "customer_sentiment_score" in last_msg:
+                    subtasks = [
+                        {
+                            "id": "subtask_1",
+                            "specialist": "data_analysis",
+                            "input": {"query": "Query non-existent column 'customer_sentiment_score' from demo_data.sales_data."},
+                            "depends_on": [],
+                            "expected_output_schema": {}
+                        }
+                    ]
+                elif "sales_data" in last_msg or "metrics" in last_msg:
+                    subtasks = [
+                        {
+                            "id": "subtask_1",
+                            "specialist": "data_analysis",
+                            "input": {"query": "SELECT * FROM demo_data.sales_data;"},
+                            "depends_on": [],
+                            "expected_output_schema": {}
+                        }
+                    ]
+                else:
+                    subtasks = [
+                        {
+                            "id": "subtask_1",
+                            "specialist": "research",
+                            "input": {"query": "agent orchestration trends"},
+                            "depends_on": [],
+                            "expected_output_schema": {}
                         },
                         {
-                          "id": "subtask_2",
-                          "specialist": "writing",
-                          "input": {"facts_file": "subtask_1"},
-                          "depends_on": ["subtask_1"],
-                          "expected_output_schema": {}
+                            "id": "subtask_2",
+                            "specialist": "writing",
+                            "input": {"facts_file": "subtask_1"},
+                            "depends_on": ["subtask_1"],
+                            "expected_output_schema": {}
                         }
-                      ],
-                      "confidence": 0.95
-                    }"""
-                    return mock_json, 15, 10
-                elif hasattr(response_schema, "__name__") and response_schema.__name__ == "ReviewResult":
-                    return '{"verdict": "approve", "feedback": ""}', 10, 5
+                    ]
+                return json.dumps({"subtasks": subtasks, "confidence": 0.95}), 15, 10
 
-            # Check if this is a specialist agent call
-            is_specialist = any("Specialist" in msg.get("content", "") or "final_answer" in msg.get("content", "") for msg in messages)
-            if is_specialist:
-                return '{"thought": "I have completed the subtask.", "final_answer": {"overview": "Trends include LangGraph, supervisor patterns, and sandboxed code execution."}}', 10, 5
+            if is_reviewer:
+                return '{"verdict": "approve", "feedback": ""}', 10, 5
 
-            return "This is a mocked Gemini response.", 15, 10
+            # Specialist agent call
+            if "returned:" in last_msg or "tool '" in last_msg:
+                return '{"thought": "Finished tool execution", "final_answer": {"overview": "Analysis and execution complete."}}', 10, 5
+
+            if "non_existent_table" in last_msg:
+                return '{"thought": "Querying table", "tool_call": {"name": "db_query", "arguments": {"query": "SELECT * FROM non_existent_table_999;"}}}', 10, 5
+
+            return '{"thought": "Querying sales data", "tool_call": {"name": "db_query", "arguments": {"query": "SELECT * FROM demo_data.sales_data;"}}}', 10, 5
 
         if not self.client:
             raise NonRetryableProviderError("Gemini client is not initialized (no API key).", provider="gemini")

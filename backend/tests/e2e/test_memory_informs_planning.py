@@ -18,6 +18,15 @@ async def test_memory_informs_planning(db_cleaner):
 
     prompt = "Research recent trends in agent orchestration systems."
 
+    async with AsyncSessionLocal() as session:
+        t1_old = await session.get(Task, UUID(task1_id))
+        if t1_old:
+            await session.delete(t1_old)
+        t2_old = await session.get(Task, UUID(task2_id))
+        if t2_old:
+            await session.delete(t2_old)
+        await session.commit()
+
     # Run Task 1 to completion to populate ChromaDB memory
     async with AsyncSessionLocal() as session:
         t1 = Task(id=UUID(task1_id), request_text=prompt, status="intake", confidence=1.0)

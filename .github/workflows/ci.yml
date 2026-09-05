@@ -80,6 +80,11 @@ jobs:
             redis-cli -h localhost ping && break
             sleep 2
           done
+          echo "Waiting for ChromaDB..."
+          for i in $(seq 1 30); do
+            curl -s http://localhost:8002/api/v1/heartbeat && break
+            sleep 2
+          done
 
       - name: Initialize database schema
         working-directory: backend

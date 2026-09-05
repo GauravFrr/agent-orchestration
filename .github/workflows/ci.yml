@@ -82,7 +82,7 @@ jobs:
           done
           echo "Waiting for ChromaDB..."
           for i in $(seq 1 30); do
-            curl -s http://localhost:8002/api/v1/heartbeat && break
+            curl -sf http://localhost:8002/api/v1/heartbeat && break
             sleep 2
           done
 
@@ -102,14 +102,7 @@ jobs:
         working-directory: backend
         env:
           PYTHONPATH: .
-        run: |
-          pytest tests/e2e \
-            -v \
-            --asyncio-mode=auto \
-            --tb=short \
-            --timeout=600 \
-            -p no:warnings \
-            2>&1
+        run: pytest tests/e2e -v --asyncio-mode=auto --tb=auto
 
       - name: Upload test logs on failure
         if: failure()

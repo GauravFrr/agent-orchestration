@@ -143,10 +143,10 @@ async def initialize_database():
 
                 IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'analyst') THEN
                     REVOKE ALL PRIVILEGES ON SCHEMA public FROM analyst;
-                    GRANT USAGE ON SCHEMA demo_data TO analyst;
-                    GRANT SELECT ON ALL TABLES IN SCHEMA demo_data TO analyst;
-                    GRANT SELECT ON ALL SEQUENCES IN SCHEMA demo_data TO analyst;
-                    ALTER DEFAULT PRIVILEGES IN SCHEMA demo_data GRANT SELECT ON TABLES TO analyst;
+                    GRANT ALL PRIVILEGES ON SCHEMA demo_data TO analyst;
+                    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA demo_data TO analyst;
+                    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA demo_data TO analyst;
+                    ALTER DEFAULT PRIVILEGES IN SCHEMA demo_data GRANT ALL PRIVILEGES ON TABLES TO analyst;
                 END IF;
             END
             $$;

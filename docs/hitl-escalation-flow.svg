@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 680" font-family="monospace, 'Courier New'" font-size="12">
+  <!-- Background -->
+  <rect width="950" height="680" fill="#0f1117"/>
+
+  <!-- Title -->
+  <text x="475" y="32" text-anchor="middle" fill="#e2e8f0" font-size="16" font-weight="bold">Human Escalation &amp; HITL Decision Flow</text>
+  <text x="475" y="50" text-anchor="middle" fill="#64748b" font-size="11">Sequence Diagram — Trigger Evaluation, Pause, Human Decision, &amp; Graph Resume</text>
+
+  <!-- Lifeline Columns (Header Boxes) -->
+  <!-- 1. LangGraph / Dispatch -->
+  <rect x="30" y="70" width="130" height="40" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="95" y="94" text-anchor="middle" fill="#93c5fd" font-weight="bold">LangGraph</text>
+  <line x1="95" y1="110" x2="95" y2="630" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- 2. Trigger Evaluator -->
+  <rect x="180" y="70" width="130" height="40" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="245" y="94" text-anchor="middle" fill="#fcd34d" font-weight="bold">Trigger Eval</text>
+  <line x1="245" y1="110" x2="245" y2="630" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- 3. Checkpointer -->
+  <rect x="330" y="70" width="130" height="40" rx="6" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="395" y="94" text-anchor="middle" fill="#a5b4fc" font-weight="bold">Checkpointer</text>
+  <line x1="395" y1="110" x2="395" y2="630" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- 4. Review Queue / Redis -->
+  <rect x="480" y="70" width="140" height="40" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="550" y="94" text-anchor="middle" fill="#fca5a5" font-weight="bold">Review Queue</text>
+  <line x1="550" y1="110" x2="550" y2="630" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- 5. React Review UI -->
+  <rect x="640" y="70" width="140" height="40" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="710" y="94" text-anchor="middle" fill="#fcd34d" font-weight="bold">React UI (/reviews)</text>
+  <line x1="710" y1="110" x2="710" y2="630" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- 6. Operator / Human -->
+  <rect x="800" y="70" width="120" height="40" rx="6" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="860" y="94" text-anchor="middle" fill="#86efac" font-weight="bold">Operator</text>
+  <line x1="860" y1="110" x2="860" y2="630" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- Messages / Interactions -->
+
+  <!-- Step 1: Subtask ready -->
+  <rect x="85" y="125" width="20" height="480" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+
+  <line x1="95" y1="140" x2="245" y2="140" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrowOrange)"/>
+  <text x="170" y="133" text-anchor="middle" fill="#fcd34d" font-size="10">1. evaluate_triggers(subtask)</text>
+
+  <!-- Step 2: Trigger returned -->
+  <line x1="245" y1="170" x2="95" y2="170" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowBlue)"/>
+  <text x="170" y="163" text-anchor="middle" fill="#fcd34d" font-size="10">2. trigger: sensitive_action (deletion)</text>
+
+  <!-- Step 3: Checkpoint save -->
+  <line x1="95" y1="205" x2="395" y2="205" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrowIndigo)"/>
+  <text x="245" y="198" text-anchor="middle" fill="#a5b4fc" font-size="10">3. save_checkpoint(state_snapshot)</text>
+
+  <line x1="395" y1="235" x2="95" y2="235" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowBlue)"/>
+  <text x="245" y="228" text-anchor="middle" fill="#a5b4fc" font-size="10">4. checkpoint_id persisted</text>
+
+  <!-- Step 4: Create Review Request & PubSub -->
+  <line x1="95" y1="270" x2="550" y2="270" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrowRed)"/>
+  <text x="320" y="263" text-anchor="middle" fill="#fca5a5" font-size="10">5. create_review_request(context_snapshot)</text>
+
+  <line x1="550" y1="300" x2="710" y2="300" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowOrange)"/>
+  <text x="630" y="293" text-anchor="middle" fill="#fca5a5" font-size="10">6. Redis pub/sub ('reviews:pending')</text>
+
+  <!-- Pause Box -->
+  <rect x="50" y="320" width="370" height="30" rx="4" fill="#451a03" stroke="#f59e0b" stroke-width="1"/>
+  <text x="235" y="340" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="bold">⏸ GRAPH PAUSED — Task Status: 'escalated'</text>
+
+  <!-- Step 5: UI Notification & Operator View -->
+  <line x1="710" y1="370" x2="860" y2="370" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+  <text x="785" y="363" text-anchor="middle" fill="#fcd34d" font-size="10">7. Render Pending Review Badge</text>
+
+  <!-- Step 6: Chat Q&A -->
+  <line x1="860" y1="410" x2="710" y2="410" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrowOrange)"/>
+  <text x="785" y="403" text-anchor="middle" fill="#86efac" font-size="10">8. Scoped Q&amp;A Chat ("Why this action?")</text>
+
+  <!-- Step 7: Decision Submission -->
+  <line x1="860" y1="450" x2="710" y2="450" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrowOrange)"/>
+  <text x="785" y="443" text-anchor="middle" fill="#86efac" font-size="10">9. Decision (Approve / Modify / Reject / Take Over)</text>
+
+  <!-- Step 8: POST Decision API -->
+  <line x1="710" y1="490" x2="550" y2="490" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrowRed)"/>
+  <text x="630" y="483" text-anchor="middle" fill="#fcd34d" font-size="10">10. POST /reviews/{id}/decision</text>
+
+  <!-- Step 9: Resume Graph -->
+  <line x1="550" y1="530" x2="95" y2="530" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <text x="320" y="523" text-anchor="middle" fill="#93c5fd" font-size="10">11. Resume Graph from Checkpoint with Decision</text>
+
+  <rect x="50" y="555" width="370" height="30" rx="4" fill="#064e3b" stroke="#22c55e" stroke-width="1"/>
+  <text x="235" y="575" text-anchor="middle" fill="#86efac" font-size="10" font-weight="bold">▶ GRAPH RESUMED — Execution Continues</text>
+
+  <!-- Markers -->
+  <defs>
+    <marker id="arrowBlue" markerWidth="9" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 9 3, 0 6" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="9" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 9 3, 0 6" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrowIndigo" markerWidth="9" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 9 3, 0 6" fill="#6366f1"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="9" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 9 3, 0 6" fill="#ef4444"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="9" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 9 3, 0 6" fill="#22c55e"/>
+    </marker>
+  </defs>
+</svg>

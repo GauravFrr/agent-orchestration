@@ -25,6 +25,7 @@ async def db_cleaner() -> AsyncGenerator[list, None]:
                     await session.execute(text("DELETE FROM public.trace_spans WHERE task_id = :tid"), {"tid": task_uuid})
                     await session.execute(text("DELETE FROM public.replays WHERE original_task_id = :tid OR resulting_task_id = :tid"), {"tid": task_uuid})
                     await session.execute(text("DELETE FROM public.checkpoints WHERE thread_id = :tid"), {"tid": str(tid)})
+                    await session.execute(text("DELETE FROM public.task_checkpoints WHERE task_id = :tid"), {"tid": task_uuid})
                     await session.execute(text("DELETE FROM public.subtasks WHERE task_id = :tid"), {"tid": task_uuid})
                     await session.execute(text("DELETE FROM public.tasks WHERE id = :tid"), {"tid": task_uuid})
                     await session.commit()

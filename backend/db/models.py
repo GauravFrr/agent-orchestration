@@ -131,8 +131,8 @@ class ReviewRequest(Base):
 
     task = relationship("Task")
 
-class Checkpoint(Base):
-    __tablename__ = "checkpoints"
+class TaskCheckpoint(Base):
+    __tablename__ = "task_checkpoints"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
@@ -141,6 +141,9 @@ class Checkpoint(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
 
     task = relationship("Task")
+
+# Backward-compatibility alias
+Checkpoint = TaskCheckpoint
 
 class HITLConfig(Base):
     __tablename__ = "hitl_configs"

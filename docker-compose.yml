@@ -53,6 +53,7 @@ services:
     env_file:
       - .env
     environment:
+      - PYTHONPATH=/workspace
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379/0
       - CHROMA_HOST=chromadb
@@ -95,6 +96,7 @@ services:
     env_file:
       - .env
     environment:
+      - PYTHONPATH=/workspace
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379/0
       - CHROMA_HOST=chromadb
@@ -118,6 +120,7 @@ services:
     env_file:
       - .env
     environment:
+      - PYTHONPATH=/workspace
       - REDIS_URL=redis://redis:6379/0
     volumes:
       - ./backend/app:/workspace/app

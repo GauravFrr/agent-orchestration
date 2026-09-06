@@ -133,10 +133,43 @@ async def submit_decision(
     cp_res = await db.execute(cp_query)
     checkpoint = cp_res.scalars().first()
 
-    if not checkpoint or not checkpoint.state_snapshot:
+    restored_state = None
+    if checkpoint and checkpoint.state_snapshot:
+        restored_state = dict(checkpoint.state_snapshot)
+    else:
+        # Fallback 1: load working state from Redis
+        from app.memory.short_term import get_working_state
+        ws = get_working_state(str(review_req.task_id))
+        if ws:
+            restored_state = {
+                "task_id": str(review_req.task_id),
+                "request_text": review_req.context_snapshot.get("request_text", "") if review_req.context_snapshot else "",
+                "plan": ws.get("plan"),
+                "results": ws.get("completed_outputs", {}),
+                "errors": ws.get("errors", {}),
+                "retries": {},
+                "current_subtask_ids": [],
+                "synthesis": "",
+                "status": "executing"
+            }
+        elif review_req.context_snapshot:
+            # Fallback 2: build from context_snapshot
+            ctx = review_req.context_snapshot
+            restored_state = {
+                "task_id": str(review_req.task_id),
+                "request_text": ctx.get("request_text", ""),
+                "plan": ctx.get("plan"),
+                "results": ctx.get("completed_outputs", {}),
+                "errors": {},
+                "retries": {},
+                "current_subtask_ids": [],
+                "synthesis": "",
+                "status": "executing"
+            }
+
+    if not restored_state:
         raise HTTPException(status_code=500, detail="Checkpoint state snapshot not found for task resumption.")
 
-    restored_state = dict(checkpoint.state_snapshot)
     subtask_id = review_req.subtask_id
 
     # Apply decision payload to restored state & database models

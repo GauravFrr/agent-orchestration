@@ -140,6 +140,9 @@ async def dispatch_node(state: AgentState) -> dict:
                 "trigger": trigger,
                 "proposed_action": f"Execute specialist '{subtask.specialist.value}' on input: {subtask.input}"
             }
+            from app.graph.checkpointing import save_checkpoint
+            await save_checkpoint(task_id, "dispatch", state)
+
             await create_review_request(
                 task_id=task_id,
                 subtask_id=subtask.id,

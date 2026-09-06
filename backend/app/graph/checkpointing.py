@@ -43,22 +43,42 @@ def get_checkpointer() -> AsyncPostgresSaver:
             raise RuntimeError(error_msg) from e
     return _checkpointer_instance
 
+def serialize_state(state_snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Safely convert Pydantic models or non-dict objects within state to JSON-compatible dicts.
+    """
+    clean = {}
+    for k, v in state_snapshot.items():
+        if hasattr(v, "model_dump"):
+            clean[k] = v.model_dump()
+        elif isinstance(v, dict):
+            clean[k] = serialize_state(v)
+        elif isinstance(v, list):
+            clean[k] = [item.model_dump() if hasattr(item, "model_dump") else item for item in v]
+        else:
+            clean[k] = v
+    return clean
+
 async def save_checkpoint(task_id: str, node_name: str, state_snapshot: Dict[str, Any]) -> str:
     """
     Persist a state snapshot checkpoint to the database. Returns checkpoint ID string.
     """
     cp_id = str(uuid4())
-    async with AsyncSessionLocal() as session:
-        cp = Checkpoint(
-            id=UUID(cp_id),
-            task_id=UUID(task_id),
-            node_name=node_name,
-            state_snapshot=state_snapshot,
-            created_at=datetime.utcnow()
-        )
-        session.add(cp)
-        await session.commit()
-    logger.info(f"Saved state checkpoint {cp_id} for task {task_id} at node '{node_name}'.")
+    try:
+        clean_snapshot = serialize_state(state_snapshot)
+        async with AsyncSessionLocal() as session:
+            cp = Checkpoint(
+                id=UUID(cp_id),
+                task_id=UUID(task_id),
+                node_name=node_name,
+                state_snapshot=clean_snapshot,
+                created_at=datetime.utcnow()
+            )
+            session.add(cp)
+            await session.commit()
+        logger.info(f"Saved state checkpoint {cp_id} for task {task_id} at node '{node_name}'.")
+    except Exception as e:
+        logger.error(f"Failed to save checkpoint for task {task_id} at node '{node_name}': {e}")
     return cp_id
 
 async def load_checkpoint(checkpoint_id: str, thread_id: Optional[str] = None) -> Dict[str, Any]:

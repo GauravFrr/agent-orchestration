@@ -100,6 +100,10 @@ async def plan_node(state: AgentState) -> dict:
             from app.memory.short_term import save_working_state
             save_working_state(task_id, plan.model_dump(), {}, {})
 
+        # Save custom checkpoint
+        from app.graph.checkpointing import save_checkpoint
+        await save_checkpoint(task_id, "plan", {"request_text": request_text, "plan": plan, "status": "executing"})
+
         return {
             "plan": plan,
             "status": "executing"

@@ -31,9 +31,20 @@ async def resume_workflow_from_checkpoint(task_id: str, restored_state: dict):
     Background worker task to resume LangGraph execution from a saved checkpoint state snapshot.
     """
     logger.info(f"Resuming LangGraph execution for task: {task_id}")
+    from app.graph.checkpointing import get_checkpointer
+    cp = get_checkpointer()
+    if hasattr(cp, "conn") and hasattr(cp.conn, "_closed") and cp.conn._closed:
+        await cp.conn.open()
+    elif hasattr(cp, "conn") and hasattr(cp.conn, "open"):
+        try:
+            await cp.conn.open()
+        except Exception:
+            pass
+
     workflow = build_workflow()
     try:
-        await workflow.ainvoke(restored_state)
+        config = {"configurable": {"thread_id": task_id}}
+        await workflow.ainvoke(restored_state, config=config)
         logger.info(f"Finished resumed LangGraph workflow execution for task: {task_id}")
     except Exception as e:
         logger.exception(f"Resumed LangGraph execution crashed for task: {task_id}. Error: {str(e)}")

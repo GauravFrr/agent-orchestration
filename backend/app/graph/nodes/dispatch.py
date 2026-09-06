@@ -70,6 +70,9 @@ async def dispatch_node(state: AgentState) -> dict:
         if cp_id:
             span.set_attribute("checkpoint_id", cp_id)
         plan = state.get("plan")
+        if isinstance(plan, dict):
+            from app.core.schemas import Plan
+            plan = Plan.model_validate(plan)
         results = dict(state.get("results", {}))
         errors = dict(state.get("errors", {}))
 
@@ -107,7 +110,8 @@ async def dispatch_node(state: AgentState) -> dict:
 
     for subtask in ready_subtasks:
         # Skip re-triggering escalation if the subtask has already been approved or set to running post-human decision
-        if subtask.status in (SubtaskStatus.APPROVED, SubtaskStatus.RUNNING):
+        status_val = subtask.status.value if hasattr(subtask.status, "value") else str(subtask.status)
+        if status_val.lower() in ("approved", "running"):
             continue
 
         triggers = await evaluate_triggers(

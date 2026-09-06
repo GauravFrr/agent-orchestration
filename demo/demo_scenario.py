@@ -87,7 +87,13 @@ def main():
     second_id = second_task["id"]
     print(f"-> Secondary Task Created: Task ID = {second_id}")
 
-    time.sleep(5)
+    print("   Waiting for Secondary Task completion...")
+    for _ in range(30):
+        time.sleep(2)
+        curr = make_request(f"{BASE_URL}/tasks/{second_id}")
+        if curr["status"] in ("done", "failed"):
+            break
+
     trace_tree = make_request(f"{BASE_URL}/tasks/{second_id}/trace")
     print(f"-> Verified Secondary Task Trace fetched: Spans Recorded = {len(trace_tree.get('trace_tree', []))}")
 

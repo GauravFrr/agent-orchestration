@@ -39,6 +39,10 @@ async def intake_node(state: AgentState) -> dict:
             span.set_attribute("checkpoint_id", cp_id)
         logger.info(f"Intake node started for task: {task_id}")
 
+        if state.get("plan"):
+            logger.info(f"Intake node reusing existing state for task: {task_id}")
+            return {"status": "executing"}
+
         async with AsyncSessionLocal() as session:
             # Check if task already exists
             task_uuid = UUID(task_id)

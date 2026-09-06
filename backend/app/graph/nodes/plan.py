@@ -39,6 +39,14 @@ async def plan_node(state: AgentState) -> dict:
             span.set_attribute("checkpoint_id", cp_id)
         logger.info(f"Plan node started for task: {task_id}")
 
+        existing_plan = state.get("plan")
+        if existing_plan:
+            logger.info(f"Plan node reusing existing plan for task: {task_id}")
+            if isinstance(existing_plan, dict):
+                from app.core.schemas import Plan
+                existing_plan = Plan.model_validate(existing_plan)
+            return {"plan": existing_plan, "status": "executing"}
+
         from app.memory.manager import MemoryManager
         mem_manager = MemoryManager()
         memories_text = await mem_manager.retrieve_context(request_text)
